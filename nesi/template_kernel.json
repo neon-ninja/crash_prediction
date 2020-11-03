@@ -1,0 +1,11 @@
+{
+ "argv": [
+ "##KERNEL_DIR##/wrapper.bash",
+ "-m",
+ "ipykernel_launcher",
+ "-f",
+ "{connection_file}"
+ ],
+ "display_name": "##KERNEL_NAME##",
+ "language": "python"
+}
