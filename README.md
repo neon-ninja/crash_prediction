@@ -28,5 +28,5 @@ for details.
 
 If you have any question or comment on this work, do not hesitate to contact us:
 
-- [Nick Young](nick.young@auckland.ac.nz) from the [Center for eResearch](https://www.eresearch.auckland.ac.nz/),
-- [Maxime Rio](maxime.rio@nesi.org.nz) from [NeSI](https://www.nesi.org.nz/).
+- Nick Young (nick.young@auckland.ac.nz) from the [Center for eResearch](https://www.eresearch.auckland.ac.nz/),
+- Maxime Rio (maxime.rio@nesi.org.nz) from [NeSI](https://www.nesi.org.nz/).
