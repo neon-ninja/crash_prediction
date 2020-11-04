@@ -48,6 +48,7 @@ requirements.txt: venv/.canary
 # create a virtual environment and register it as a jupyter kernel
 venv/.canary: setup.cfg setup.py
 	conda create -y -p $(CONDA_VENV_PATH) python=$(PYTHON_VERSION)
+	$(CONDA_VENV) conda install -c conda-forge cartopy
 	$(CONDA_VENV) pip install -e .[dev]
 	$(CONDA_VENV) python -m ipykernel install --user --name $(KERNEL_NAME)
 	touch "$@"
