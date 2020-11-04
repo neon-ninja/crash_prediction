@@ -2,8 +2,8 @@ PYTHON_VERSION ?= 3.8
 CONDA_VENV_PATH ?= $(PWD)/venv
 KERNEL_NAME ?= $(shell basename $(CURDIR))
 
-NOTEBOOKS_SRC := $(wildcard src/notebooks/*.py)
-NOTEBOOKS := $(NOTEBOOKS_SRC:src/%.py=%.ipynb)
+NOTEBOOKS_SRC := $(wildcard src/nb_*.py)
+NOTEBOOKS := $(NOTEBOOKS_SRC:src/%.py=notebooks/%.ipynb)
 HTML_FILES := $(NOTEBOOKS:.ipynb=.html)
 
 CONDA_BASE := $(shell conda info --base)
@@ -36,10 +36,10 @@ notebooks/%.html: notebooks/%.ipynb
 	$(CONDA_VENV) jupyter nbconvert --to html "$<"
 
 # convert a script into a notebook, run it and store it in the notebooks folder
-notebooks/%.ipynb: src/notebooks/%.py requirements.txt
+notebooks/%.ipynb: src/%.py requirements.txt
 	$(CONDA_VENV) jupytext --to notebook --execute --set-kernel $(KERNEL_NAME) "$<"
 	mkdir -p notebooks
-	mv "src/$@" "$@"
+	mv "src/$(@F)" "$@"
 
 # freeze the dependencies installed in the virtual environment for reproducibility
 requirements.txt: venv/.canary
@@ -48,7 +48,7 @@ requirements.txt: venv/.canary
 # create a virtual environment and register it as a jupyter kernel
 venv/.canary: setup.cfg setup.py
 	conda create -y -p $(CONDA_VENV_PATH) python=$(PYTHON_VERSION)
-	$(CONDA_VENV) conda install -c conda-forge cartopy
+	$(CONDA_VENV) conda install -y -c conda-forge cartopy
 	$(CONDA_VENV) pip install -e .[dev]
 	$(CONDA_VENV) python -m ipykernel install --user --name $(KERNEL_NAME)
 	touch "$@"
@@ -67,7 +67,7 @@ venv_nesi: venv
 clean_venv:
 	rm -rf $(KERNEL_DIR)
 	conda env remove -p $(CONDA_VENV_PATH)
-	rm -rf *.egg-info
+	rm -rf src/*.egg-info
 
 ## Format Python scripts
 format:
