@@ -2,8 +2,8 @@ PYTHON_VERSION ?= 3.8
 CONDA_VENV_PATH ?= $(PWD)/venv
 KERNEL_NAME ?= $(shell basename $(CURDIR))
 
-NOTEBOOKS_SRC := $(wildcard src/nb_*.py)
-NOTEBOOKS := $(NOTEBOOKS_SRC:src/%.py=notebooks/%.ipynb)
+NOTEBOOKS_SRC := $(wildcard notebooks/*.py)
+NOTEBOOKS := $(NOTEBOOKS_SRC:.py=.ipynb)
 HTML_FILES := $(NOTEBOOKS:.ipynb=.html)
 
 CONDA_BASE := $(shell conda info --base)
@@ -32,14 +32,12 @@ help: Makefile
 notebooks: $(NOTEBOOKS) $(HTML_FILES)
 
 # convert a notebook into .html document
-notebooks/%.html: notebooks/%.ipynb
+%.html: %.ipynb
 	$(CONDA_VENV) jupyter nbconvert --to html "$<"
 
 # convert a script into a notebook, run it and store it in the notebooks folder
-notebooks/%.ipynb: src/%.py requirements.txt
+%.ipynb: %.py requirements.txt
 	$(CONDA_VENV) jupytext --to notebook --execute --set-kernel $(KERNEL_NAME) "$<"
-	mkdir -p notebooks
-	mv "src/$(@F)" "$@"
 
 # freeze the dependencies installed in the virtual environment for reproducibility
 requirements.txt: venv/.canary
