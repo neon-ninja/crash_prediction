@@ -54,39 +54,71 @@ dset.columns
 
 # ## Spatio-temporal aspects
 
-hv_map = dset.hvplot.points(
-    "X",
-    "Y",
-    tiles="OSM",
-    crs=2193,
-    frame_width=400,
-    datashade=True,
-)
-hv_map
-
-hv_auckland = dset.hvplot.points(
-    "X",
-    "Y",
-    tiles="OSM",
-    crs=2193,
-    frame_width=400,
-    datashade=True,
-)
-hv_auckland.redim.range(X=(1739669.89, 1781221.41), Y=(5932097.90, 5901931.60))
-
-hv_cbd = dset.hvplot.points(
-    "X",
-    "Y",
-    tiles="OSM",
-    crs=2193,
-    frame_width=400,
-    datashade=True,
-)
-hv_cbd.redim.range(X=(1755876.21,  1758568.09), Y=(5921526.71, 5918933.89))
-
-# +
 # import geopandas as gpd
 #
 # gdset = gpd.GeoDataFrame(
 #     dset, geometry=gpd.points_from_xy(dset["X"], dset["Y"], crs=2193)
 # )
+#
+# gdset.to_crs(epsg=4326, inplace=True)
+#
+# hv_map = gdset.hvplot(
+#     tiles="CartoLight",
+#     datashade=True,
+#     cmap="fire",
+#     frame_width=400,
+# )
+# hv_map
+
+map_kwargs = {
+    "tiles": "CartoLight",
+    "crs": 2193,
+    "datashade": True,
+    "cmap": "fire"
+}
+
+hv_nz = dset.hvplot.points(
+    "X",
+    "Y",
+    frame_width=500,
+    **map_kwargs
+)
+hv_nz
+
+bbox_auckland = {"X": (1739669.89, 1781221.41), "Y": (5932097.90, 5901931.60)}
+hv_auckland = dset.hvplot.points(
+    "X",
+    "Y",
+    frame_width=500,
+    **map_kwargs
+)
+hv_auckland.redim.range(**bbox_auckland)
+
+bbox_cbd = {"X": (1755876.21,  1758568.09), "Y": (5921526.71, 5918933.89)}
+hv_cbd = dset.hvplot.points(
+    "X",
+    "Y",
+    frame_width=400,
+    dynspread=True,
+    **map_kwargs
+)
+hv_cbd.redim.range(**bbox_cbd)
+
+crash_counts = dset.groupby('crashYear').apply(lambda x: len(x))
+crash_counts.hvplot(grid=True, ylabel="counts")
+
+hv_cbd_year = dset.hvplot.points(
+    "X",
+    "Y",
+    groupby="crashYear",
+    frame_width=400,
+    dynspread=True,
+    **map_kwargs,
+)
+hv_cbd_year.redim.range(**bbox_cbd)
+
+# ## Features
+#
+# - road features (surface, curvature, etc.)
+# - environmental features (weather, light, etc.)
+# - time feature (time of the day, year, etc.)
