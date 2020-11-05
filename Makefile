@@ -35,9 +35,9 @@ notebooks: $(NOTEBOOKS) $(HTML_FILES)
 %.html: %.ipynb
 	$(CONDA_VENV) jupyter nbconvert --to html "$<"
 
-# convert a script into a notebook, run it and store it in the notebooks folder
+# convert a script into a notebook and reformat both with black
 %.ipynb: %.py requirements.txt
-	$(CONDA_VENV) jupytext --to notebook --execute --set-kernel $(KERNEL_NAME) "$<"
+	$(CONDA_VENV) jupytext --sync --pipe black "$<"
 
 # freeze the dependencies installed in the virtual environment for reproducibility
 requirements.txt: venv/.canary
