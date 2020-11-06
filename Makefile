@@ -1,3 +1,6 @@
+# ensure conda environment do not use user site-packages
+export PYTHONNOUSERSITE=1
+
 PYTHON_VERSION ?= 3.8
 CONDA_VENV_PATH ?= $(PWD)/venv
 KERNEL_NAME ?= $(shell basename $(CURDIR))

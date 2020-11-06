@@ -5,7 +5,40 @@ TODO Introduction
 
 ## Installation
 
-TODO makefile venv target
+On jupyter.nesi.org.nz, open a terminal and clone this repository:
+```
+git clone https://github.com/neon-ninja/crash_prediction.git
+```
+then change directory:
+```
+cd crash_prediction
+```
+and use the Makefile to install dependencies and create a conda environment:
+```
+module purge
+module load Miniconda3/4.8.2
+make venv_nesi
+```
+
+If you are using this code on a regular computer (not HPC), make sure you have:
+- [Git](https://git-scm.com/downloads),
+- [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed,
+- [JupyterLab](https://jupyter.org/install.html) or another program to run
+  notebooks,
+- the `make` command.
+
+Then clone this repository, for example from a terminal using:
+```
+git clone https://github.com/neon-ninja/crash_prediction.git
+```
+change directory and install all dependencies using `make`:
+```
+cd crash_prediction
+make venv
+```
+
+Whichever way you installed the code, now you can run the provided notebooks
+using the `crash_prediction` kernel.
 
 
 ## Getting Started

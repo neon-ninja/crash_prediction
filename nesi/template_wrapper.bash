@@ -19,6 +19,9 @@ else
 fi
 module load "$CONDA_MODULE"
 
+# ensure user packages are not used by conda
+export PYTHONNOUSERSITE=1
+
 # activate conda environment
 source $(conda info --base)/etc/profile.d/conda.sh
 conda deactivate  # enforce base environment to be unloaded
