@@ -31,16 +31,17 @@ help: Makefile
 	@echo '    KERNEL_NAME      Jupyter kernel name ($(KERNEL_NAME))'
 	@echo ''
 
-## Convert some scripts into notebooks and .html files
+## Generate notebooks from scripts and export them as .html files
 notebooks: $(NOTEBOOKS) $(HTML_FILES)
 
-# convert a notebook into .html document
-%.html: %.ipynb
-	$(CONDA_VENV) jupyter nbconvert --to html "$<"
+# convert a notebook into a .html document after running it
+%.html: %.ipynb requirements.txt
+	$(CONDA_VENV) jupyter nbconvert --to html --execute "$<" --output="$(@F)" \
+	    --ExecutePreprocessor.kernel_name=$(KERNEL_NAME)
 
-# convert a script into a notebook and reformat both with black
-%.ipynb: %.py requirements.txt
-	$(CONDA_VENV) jupytext --sync --pipe black "$<"
+# convert a script into an empty notebook
+%.ipynb: %.py
+	$(CONDA_VENV) jupytext --to notebook "$<"
 
 # freeze the dependencies installed in the virtual environment for reproducibility
 requirements.txt: venv/.canary
@@ -74,6 +75,6 @@ clean_venv:
 
 ## Format Python scripts
 format:
-	$(CONDA_VENV) black src/
+	$(CONDA_VENV) black src notebooks
 
 .PHONY: help venv clean_venv venv_nesi notebooks format

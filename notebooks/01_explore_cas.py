@@ -1,19 +1,3 @@
-# ---
-# jupyter:
-#   jupytext:
-#     cell_metadata_filter: -all
-#     formats: ipynb,py:light
-#     text_representation:
-#       extension: .py
-#       format_name: light
-#       format_version: '1.5'
-#       jupytext_version: 1.6.0
-#   kernelspec:
-#     display_name: crash_prediction
-#     language: python
-#     name: crash_prediction
-# ---
-
 # # Exploration of CAS (Crash analysis system) data
 
 import itertools as it
@@ -105,7 +89,7 @@ print(
 # Year 2020 is much lower as it's the current year.
 
 year_counts = dset["crashYear"].value_counts(sort=False)
-year_counts.plot.bar(ylabel="# crashes", figsize=(10, 5))
+_ = year_counts.plot.bar(ylabel="# crashes", figsize=(10, 5))
 
 year_region_counts = (
     dset.groupby(["crashYear", "region"]).size().reset_index(name="# crashes")
@@ -127,9 +111,11 @@ hv_cbd_year = dset.hvplot.points(
 )
 hv_cbd_year.redim.range(**bbox_cbd)
 
-# The other temporal attribute is the holiday. Chistmas is the holiday period
+# The other temporal attribute is the holiday. Christmas is the holiday period
 # with most of the accidents. How the period is computed is not clear, so the
-# larger amount of accident could be partly due to the time extent.
+# larger amount of accident could be partly due to the time extent. Easter,
+# Queens Birthday and Labour weekend are 3 to 4 days periods. Christmas & New Year
+# is probably 1 to 2 weeks period.
 
 holiday_counts = dset["holiday"].fillna("Normal day").value_counts()
 ax = holiday_counts.plot.bar(ylabel="# crashes", figsize=(10, 5), rot=0)
@@ -192,7 +178,7 @@ fig.set_size_inches(15, 12)
 fig.tight_layout()
 # -
 
-# **TODO** comment on which features to keep in the end
+# The `urban` feature is derived from `speedLimit`, so we can probably remove it.
 
 # ## Environmental features
 #
@@ -214,7 +200,7 @@ fig.set_size_inches(13, 4)
 fig.tight_layout()
 # -
 
-# ## Next steps
+# ## Possible next steps
 #
 # We have checked the spatial, temporal, road and environmental features related
 # to the accidents.
@@ -241,11 +227,12 @@ fig.tight_layout()
 #
 # The prediction task can be formulated in different ways:
 #
-# - If we exclude the environmental features, we can cast the problem as a
-#   regression with count data, for each year & location.
-# - Otherwise we need to decide on a time bin (e.g. a day) and predict the
-#   probability of at least one crash for each time bin & location.
-#   In this case we need to generate negative samples for every time of the
-#   year & location when no crash happened.
-# - Finally we can also try to predict the severity of the accidents, which is a
-#   slightly different problem.
+# 1. exclude weather & holiday features, and fit a regression model with count
+#    data using year & location features,
+#
+# 2. group data by location, time, weather type (e.g. rain vs. no rain), and
+#    perform a binomial regression using the total number of days in each category
+#    (e.g. number of rain days for a particular location & year),
+#
+# 3. predict crash severity from the whole dataset, assuming the non-severe
+#    crashes are a good proxy for normal conditions (weather, holidays, etc.).
