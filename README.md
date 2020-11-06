@@ -15,8 +15,6 @@ cd crash_prediction
 ```
 and use the Makefile to install dependencies and create a conda environment:
 ```
-module purge
-module load Miniconda3/4.8.2
 make venv_nesi
 ```
 

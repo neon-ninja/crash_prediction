@@ -49,6 +49,7 @@ requirements.txt: venv/.canary
 # create a virtual environment and register it as a jupyter kernel
 venv/.canary: setup.cfg setup.py
 	conda create -y -p $(CONDA_VENV_PATH) python=$(PYTHON_VERSION)
+	echo "include-system-site-packages=false" >> $(CONDA_VENV_PATH)/pyvenv.cfg
 	$(CONDA_VENV) conda install -y -c conda-forge cartopy
 	$(CONDA_VENV) pip install -e .[dev]
 	$(CONDA_VENV) python -m ipykernel install --user --name $(KERNEL_NAME)
@@ -58,7 +59,8 @@ venv/.canary: setup.cfg setup.py
 venv: venv/.canary
 
 ## Create a Conda virtual environment for Jupyter on NeSI
-venv_nesi: venv
+venv_nesi:
+	module purge && module load Miniconda3/4.8.2 && make venv
 	cp nesi/template_wrapper.bash $(KERNEL_DIR)/wrapper.bash
 	sed -i 's|##CONDA_VENV_PATH##|$(CONDA_VENV_PATH)|' $(KERNEL_DIR)/wrapper.bash
 	cp nesi/template_kernel.json $(KERNEL_DIR)/kernel.json
