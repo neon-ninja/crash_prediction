@@ -6,6 +6,7 @@ from pathlib import Path
 import requests
 import pandas as pd
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import seaborn as sb
 import contextily as cx
 
@@ -51,19 +52,32 @@ dset.columns
 #
 # *Note: We removed Chatham island data here to ease plotting.*
 
-ax = dset[dset.X > 0].plot.hexbin(
-    "X", "Y", gridsize=500, cmap="BuPu", mincnt=1, bins="log", figsize=(12, 12)
-)
-cx.add_basemap(ax, crs=4326, source=cx.providers.CartoDB.Positron)
+
+def plot_hexmap(dset, ax=None):
+    if ax is None:
+        _, ax = plt.subplots(figsize=(10, 10))
+
+    hb = ax.hexbin(
+        dset["X"], dset["Y"], gridsize=500, cmap="BuPu", mincnt=1, bins="log"
+    )
+    ax.set_xlabel("Longitude")
+    ax.set_ylabel("Latitude")
+    cx.add_basemap(ax, crs=4326, source=cx.providers.CartoDB.Positron)
+
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    ax.figure.colorbar(hb, cax=cax)
+
+    return ax
+
+
+plot_hexmap(dset[dset.X > 0])
 
 # In dense aread, like in Auckland, there are enough crashes events to map the
 # local road network.
 
 dset_auckland = dset[dset["X"].between(174.7, 174.9) & dset["Y"].between(-37, -36.8)]
-ax = dset_auckland.plot.hexbin(
-    "X", "Y", gridsize=500, cmap="BuPu", mincnt=1, bins="log", figsize=(12, 12)
-)
-cx.add_basemap(ax, crs=4326, source=cx.providers.CartoDB.Positron)
+plot_hexmap(dset_auckland)
 
 # At a coarser level, there is also the region information.
 
@@ -98,13 +112,15 @@ year_region_counts = (
 )
 _, ax = plt.subplots(figsize=(10, 5))
 sb.pointplot(data=year_region_counts, x="crashYear", y="# crashes", hue="region", ax=ax)
-ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
+ax.set_xticklabels(ax.get_xticklabels(), rotation=90, ha="right")
 _ = plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
 
 # We can also explore the spatio-temporal patterns too. Here we focus on
-# Auckland.
+# Auckland (excluding 2020).
 
-grid = sb.FacetGrid(dset_auckland, col="crashYear", col_wrap=5)
+grid = sb.FacetGrid(
+    dset_auckland[dset_auckland.crashYear < 2020], col="crashYear", col_wrap=5
+)
 grid.map(plt.hexbin, "X", "Y", gridsize=500, cmap="BuPu", mincnt=1, bins="log")
 
 # The other temporal attribute is the holiday. Christmas is the holiday period
