@@ -1,6 +1,5 @@
 # # Exploration of CAS (Crash analysis system) data
 
-import itertools as it
 from pathlib import Path
 
 import requests
@@ -112,7 +111,7 @@ year_region_counts = (
 )
 _, ax = plt.subplots(figsize=(10, 5))
 sb.pointplot(data=year_region_counts, x="crashYear", y="# crashes", hue="region", ax=ax)
-ax.set_xticklabels(ax.get_xticklabels(), rotation=90, ha="right")
+ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
 _ = plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
 
 # We can also explore the spatio-temporal patterns too. Here we focus on
@@ -130,7 +129,7 @@ grid.map(plt.hexbin, "X", "Y", gridsize=500, cmap="BuPu", mincnt=1, bins="log")
 # is probably 1 to 2 weeks period.
 
 holiday_counts = dset["holiday"].fillna("Normal day").value_counts()
-ax = holiday_counts.plot.bar(ylabel="# crashes", figsize=(10, 5), rot=0)
+ax = holiday_counts.plot.bar(ylabel="# crashes", rot=0, figsize=(10, 5))
 _ = ax.set(yscale="log")
 
 # ## Road Features
@@ -150,8 +149,8 @@ _ = ax.set(yscale="log")
 # - `roadSurface`, road surface description applying at the crash site,
 # - `speedLimit`,  speed limit in force at the crash site at the time of the
 #   crash (number, or 'LSZ' for a limited speed zone),
-# - `streetLight`, street lighting at the time of the crash, **note this is also
-#   a sort of temporal information**,
+# - `streetLight`, street lighting at the time of the crash (this is also
+#   a sort of **temporal information**),
 # - `urban`, whether the road is in an urban area (derived from speed limit).
 #
 # Unfortunately, not all fields are actually available in the dataset.
@@ -175,20 +174,13 @@ missing_features = road_features - set(dset.columns)
 road_features -= missing_features
 print("The following features are not found in the dataset:", missing_features)
 
-# +
-fig, axes = plt.subplots(3, 3)
-
-for ax, feat in it.zip_longest(axes.flat, sorted(road_features)):
-    if feat is None:
-        ax.axis("off")
-        continue
+fig, axes = plt.subplots(3, 3, figsize=(15, 12))
+for ax, feat in zip(axes.flat, sorted(road_features)):
     counts = dset[feat].value_counts(dropna=False)
-    counts.plot.bar(ylabel="# crashes", figsize=(10, 5), ax=ax, title=feat)
+    counts.plot.bar(ylabel="# crashes", title=feat, ax=ax)
     ax.set(yscale="log")
-
-fig.set_size_inches(15, 12)
+axes[-1, -1].axis("off")
 fig.tight_layout()
-# -
 
 # The `urban` feature is derived from `speedLimit`, so we can probably remove it.
 
@@ -196,21 +188,18 @@ fig.tight_layout()
 #
 # The environmental features are weather and sunhsine:
 #
-# - `light`, light at the time and place of the crash, **note: this can also be
-#   used as a time indication**,
+# - `light`, light at the time and place of the crash (this is also a sort of
+#   **temporal information**),
 # - `weatherA` and `weatherB`,  weather at the crash time/place.
 
-# +
 env_features = ["light", "weatherA", "weatherB"]
 
-fig, axes = plt.subplots(1, 3)
+fig, axes = plt.subplots(1, 3, figsize=(13, 4))
 for ax, feat in zip(axes.flat, env_features):
     counts = dset[feat].value_counts(dropna=False)
-    counts.plot.bar(ylabel="# crashes", figsize=(10, 5), ax=ax, title=feat)
+    counts.plot.bar(ylabel="# crashes", title=feat, ax=ax)
     ax.set(yscale="log")
-fig.set_size_inches(13, 4)
 fig.tight_layout()
-# -
 
 # ## Possible next steps
 #
