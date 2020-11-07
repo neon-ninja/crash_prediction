@@ -7,7 +7,7 @@ import requests
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sb
-import hvplot.pandas  # NOQA
+import contextily as cx
 
 # set seaborn default style
 sb.set()
@@ -18,11 +18,13 @@ sb.set()
 # Multiple file formats are available (csv, kml, geojson, ...), the most compact
 # being the .csv one.
 
-dset_path = Path("..") / "data" / "Crash_Analysis_System__CAS__Data.csv"
+dset_path = Path("..") / "data" / "cas_dataset.csv"
 
 if not dset_path.exists():
     dset_path.parent.mkdir(exist_ok=True, parents=True)
-    dset_url = "https://opendata.arcgis.com/datasets/8d684f1841fa4dbea6afaefc8a1ba0fc_0.csv?outSR=%7B%22latestWkid%22%3A2193%2C%22wkid%22%3A2193%7D"
+    dset_url = (
+        "https://opendata.arcgis.com/datasets/8d684f1841fa4dbea6afaefc8a1ba0fc_0.csv"
+    )
     dset_web = requests.get(dset_url)
     with dset_path.open("wb") as fd:
         fd.write(dset_web.content)
@@ -39,30 +41,29 @@ dset
 
 dset.columns
 
-# Note that `X` and `Y` are geographical coordinates using NZTM2000 (New Zealand
-# Transverse Mercator 2000) coordinate system (see [EPSG:2193](https://epsg.io/2193)).
+# Note that `X` and `Y` are geographical coordinates using the WGS84 coordinate
+# system (see [EPSG:4326](https://epsg.io/4326)).
 
 # ## Spatial features
 #
 # First, we will look at the location of the crashes. More accidents happen in
 # densier areas and it would be good to compare with population density.
+#
+# *Note: We removed Chatham island data here to ease plotting.*
 
-# common parameters for the maps
-map_kwargs = {
-    "tiles": "CartoLight",
-    "crs": 2193,
-    "datashade": True,
-    "dynspread": True,
-    "cmap": "fire",
-}
+ax = dset[dset.X > 0].plot.hexbin(
+    "X", "Y", gridsize=500, cmap="BuPu", mincnt=1, bins="log", figsize=(12, 12)
+)
+cx.add_basemap(ax, crs=4326, source=cx.providers.CartoDB.Positron)
 
-dset.hvplot.points("X", "Y", frame_width=500, **map_kwargs)
+# In dense aread, like in Auckland, there are enough crashes events to map the
+# local road network.
 
-# In dense aread, like in Auckland CBD, there are enough crashes events to map
-# the local road network.
-
-bbox_cbd = {"X": (1755876.21, 1758568.09), "Y": (5921526.71, 5918933.89)}
-dset.hvplot.points("X", "Y", frame_width=500, **map_kwargs).redim.range(**bbox_cbd)
+dset_auckland = dset[dset["X"].between(174.7, 174.9) & dset["Y"].between(-37, -36.8)]
+ax = dset_auckland.plot.hexbin(
+    "X", "Y", gridsize=500, cmap="BuPu", mincnt=1, bins="log", figsize=(12, 12)
+)
+cx.add_basemap(ax, crs=4326, source=cx.providers.CartoDB.Positron)
 
 # At a coarser level, there is also the region information.
 
@@ -71,7 +72,8 @@ ax = region_perc.plot.bar(ylabel="fraction of crashes", figsize=(10, 5))
 _ = ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
 
 print(
-    f"The top 4 regions account for {region_perc.nlargest(4).sum() * 100:0.1f}% of the crashes."
+    f"The top 4 regions account for {region_perc.nlargest(4).sum() * 100:0.1f}% "
+    "of the crashes."
 )
 
 # ## Temporal features
@@ -100,16 +102,10 @@ ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
 _ = plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
 
 # We can also explore the spatio-temporal patterns too. Here we focus on
-# Auckland's CBD.
+# Auckland.
 
-hv_cbd_year = dset.hvplot.points(
-    "X",
-    "Y",
-    groupby="crashYear",
-    frame_width=500,
-    **map_kwargs,
-)
-hv_cbd_year.redim.range(**bbox_cbd)
+grid = sb.FacetGrid(dset_auckland, col="crashYear", col_wrap=5)
+grid.map(plt.hexbin, "X", "Y", gridsize=500, cmap="BuPu", mincnt=1, bins="log")
 
 # The other temporal attribute is the holiday. Christmas is the holiday period
 # with most of the accidents. How the period is computed is not clear, so the
@@ -209,7 +205,8 @@ fig.tight_layout()
 # relatively, we will need additional baseline information if we want to create
 # a predictive model.
 #
-# For the road features we could use another [NZTA dataset](https://opendata-nzta.opendata.arcgis.com/datasets/NZTA::national-road-centreline-road-controlling-authority-data)
+# For the road features we could use a [LINZ dataset](https://data.linz.govt.nz/layer/50329-nz-road-centrelines-topo-150k/)
+# or another [NZTA dataset](https://opendata-nzta.opendata.arcgis.com/datasets/NZTA::national-road-centreline-road-controlling-authority-data)
 # that brings more information about the road type and traffic. But then we need
 # to attribute each crash to a road.
 #
