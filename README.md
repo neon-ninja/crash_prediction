@@ -41,7 +41,12 @@ using the `crash_prediction` kernel.
 
 ## Getting Started
 
-TODO presents main scripts and workflows
+First, you need to retrieve the CAS dataset, using the `cas_data` script:
+```
+cas_data download data/cas_dataset.csv
+```
+
+TODO explain other scripts and notebooks
 
 
 ## Documentation

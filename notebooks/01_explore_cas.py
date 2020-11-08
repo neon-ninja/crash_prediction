@@ -2,32 +2,26 @@
 
 from pathlib import Path
 
-import requests
 import pandas as pd
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import seaborn as sb
 import contextily as cx
 
+from crash_prediction import cas_data
+
 # set seaborn default style
 sb.set()
 
 # ## Data retrieval
 
-# First let's retrieve the dataset from the [Open Data portal](https://opendata-nzta.opendata.arcgis.com/datasets/crash-analysis-system-cas-data-1).
+# First we need to retrieve the dataset from the [Open Data portal](https://opendata-nzta.opendata.arcgis.com/datasets/crash-analysis-system-cas-data-1).
 # Multiple file formats are available (csv, kml, geojson, ...), the most compact
 # being the .csv one.
 
 dset_path = Path("..") / "data" / "cas_dataset.csv"
-
 if not dset_path.exists():
-    dset_path.parent.mkdir(exist_ok=True, parents=True)
-    dset_url = (
-        "https://opendata.arcgis.com/datasets/8d684f1841fa4dbea6afaefc8a1ba0fc_0.csv"
-    )
-    dset_web = requests.get(dset_url)
-    with dset_path.open("wb") as fd:
-        fd.write(dset_web.content)
+    cas_data.download(dset_path)
 
 # Next we load the data and have a quick look to check if there no obvious
 # loading error.
