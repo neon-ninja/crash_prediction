@@ -238,3 +238,12 @@ fig.tight_layout()
 #
 # 3. predict crash severity from the whole dataset, assuming the non-severe
 #    crashes are a good proxy for normal conditions (weather, holidays, etc.).
+
+# ---
+# ## Original computing environment
+
+# !date -R
+
+# !uname -a
+
+# !pip freeze
