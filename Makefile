@@ -31,21 +31,20 @@ help: Makefile
 	@echo '    KERNEL_NAME      Jupyter kernel name ($(KERNEL_NAME))'
 	@echo ''
 
-## Generate notebooks from scripts and export them as .html files
-notebooks: $(NOTEBOOKS) $(HTML_FILES)
-
-# convert a notebook into a .html document after running it
-%.html: %.ipynb requirements.txt
-	$(CONDA_VENV) jupyter nbconvert --to html --execute "$<" --output="$(@F)" \
-	    --ExecutePreprocessor.kernel_name=$(KERNEL_NAME)
-
 # convert a script into an empty notebook
 %.ipynb: %.py
 	$(CONDA_VENV) jupytext --to notebook "$<"
 
-# freeze the dependencies installed in the virtual environment for reproducibility
-requirements.txt: venv/.canary
-	$(CONDA_VENV) pip freeze > "$@"
+## Generate notebooks from scripts
+notebooks: $(NOTEBOOKS)
+
+# convert a notebook into a .html document after running it
+%.html: %.ipynb 
+	$(CONDA_VENV) jupyter nbconvert --to html --execute "$<" --output="$(@F)" \
+	    --ExecutePreprocessor.kernel_name=$(KERNEL_NAME)
+
+## Convert notebooks into .html pages after running them
+html: $(HTML_FILES)
 
 # create a virtual environment and register it as a jupyter kernel
 venv/.canary: setup.cfg setup.py
@@ -56,8 +55,12 @@ venv/.canary: setup.cfg setup.py
 	$(CONDA_VENV) python -m ipykernel install --user --name $(KERNEL_NAME)
 	touch "$@"
 
+# freeze the dependencies installed in the virtual environment for reproducibility
+requirements.txt: venv/.canary
+	$(CONDA_VENV) pip freeze > "$@"
+
 ## Create a Conda virtual environment and register it as a Jupyter kernel
-venv: venv/.canary
+venv: venv/.canary requirements.txt
 
 ## Create a Conda virtual environment for Jupyter on NeSI
 venv_nesi:
