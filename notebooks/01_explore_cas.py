@@ -131,6 +131,7 @@ _ = ax.set(yscale="log")
 # From the dataset fields description, the following features seem specific to
 # the type of road:
 #
+# - `crashSHDescription`, whether the crash happened on a state highway,
 # - `flatHill`, whether the road is flat or sloped,
 # - `junctionType`, type of junction the crash happened at (may also be *unknown*
 #   & crashes not occurring at a junction are also *unknown*),
@@ -151,6 +152,7 @@ _ = ax.set(yscale="log")
 
 road_features = set(
     [
+        "crashSHDescription",
         "flatHill",
         "junctionType",
         "NumberOfLanes",
@@ -173,7 +175,6 @@ for ax, feat in zip(axes.flat, sorted(road_features)):
     counts = dset[feat].value_counts(dropna=False)
     counts.plot.bar(ylabel="# crashes", title=feat, ax=ax)
     ax.set(yscale="log")
-axes[-1, -1].axis("off")
 fig.tight_layout()
 
 # The `urban` feature is derived from `speedLimit`, so we can probably remove it.
@@ -224,11 +225,12 @@ fig.tight_layout()
 # The prediction task can be formulated in different ways:
 #
 # 1. exclude weather & holiday features, and fit a regression model with count
-#    data using year & location features,
+#    data using year & location features (and accounting for traffic volume to
+#    compare the number of crashes per car on the road),
 #
 # 2. group data by location, time, weather type (e.g. rain vs. no rain), and
-#    perform a binomial regression using the total number of days in each category
-#    (e.g. number of rain days for a particular location & year),
+#    perform a binomial regression using the total number of days in each
+#    category (e.g. number of rain days for a particular location & year),
 #
 # 3. predict crash severity from the whole dataset, assuming the non-severe
 #    crashes are a good proxy for normal conditions (weather, holidays, etc.).
