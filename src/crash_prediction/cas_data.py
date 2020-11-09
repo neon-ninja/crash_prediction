@@ -1,14 +1,16 @@
+import typing as T
 from pathlib import Path
 
 import requests
 import defopt
+import pandas as pd
 
-CASDATA_URL = (
+CAS_DATA_URL = (
     "https://opendata.arcgis.com/datasets/8d684f1841fa4dbea6afaefc8a1ba0fc_0.csv"
 )
 
 
-def download(output_file: Path, url: str = CASDATA_URL):
+def download(output_file: Path, url: str = CAS_DATA_URL):
     """Download the Crash Analysis System dataset and save it in a .csv file
 
     Note that parents folders of the output file are created if needed.
@@ -22,6 +24,68 @@ def download(output_file: Path, url: str = CASDATA_URL):
         fd.write(dset_web.content)
 
 
+def prepare(
+    input_data: T.Union[pd.DataFrame, Path], *, output_file: T.Optional[Path] = None
+) -> pd.DataFrame:
+    """Prepare CAS dataset, cleaning unknown data and selecting features
+
+    Note that `NumberOfLanes` may contains NaN values in the returned DataFrame.
+
+    :param input_data: input CAS dataset
+    :param output_file: output file to save preprocessed data
+    :returns: preprocessed data
+    """
+
+    if isinstance(input_data, Path):
+        input_data = pd.read_csv(input_data)
+
+    # sub-select relevant features
+    features = [
+        # spatial features
+        "X",
+        "Y",
+        "region",
+        # temporal features
+        "crashYear",
+        "holiday",
+        # road features
+        "crashSHDescription",
+        "flatHill",
+        "NumberOfLanes",
+        "roadCharacter",
+        "roadLane",
+        "roadSurface",
+        "speedLimit",
+        "streetLight",
+        # environmental features
+        "light",
+        "weatherA",
+        "weatherB",
+        # target variable
+        "crashSeverity",
+    ]
+    input_data = input_data[features].copy()
+
+    # remove NaN values where it's not obvious what they stand for
+    input_data.dropna(subset=["crashSHDescription", "region"], inplace=True)
+
+    # NaNs in "holiday" stands for regular days
+    input_data["holiday"].fillna("Normal day", inplace=True)
+
+    # NaNs in "speedLimit" stands for LSZ zone
+    input_data["LSZ"] = input_data["speedLimit"].isna()
+    input_data["speedLimit"].fillna(100, inplace=True)
+
+    # homogenize unknown values representation
+    input_data.replace("Null", "Unknown", inplace=True)
+
+    if output_file is not None:
+        output_file.parent.mkdir(exist_ok=True, parents=True)
+        input_data.to_csv(output_file)
+
+    return input_data
+
+
 def main():
     """wrapper function to create a CLI tool"""
-    defopt.run([download])
+    defopt.run([download, prepare], parsers={T.Union[pd.DataFrame, Path]: Path})

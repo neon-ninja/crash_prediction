@@ -46,6 +46,11 @@ First, you need to retrieve the CAS dataset, using the `cas_data` script:
 cas_data download data/cas_dataset.csv
 ```
 
+Then prepare the dataset, i.e. select relevant colums, filter NaN values, etc.:
+```
+cas_data prepare data/cas_dataset.csv -o results/cas_dataset.csv
+```
+
 TODO explain other scripts and notebooks
 
 
