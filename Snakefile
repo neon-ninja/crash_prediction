@@ -1,8 +1,8 @@
 rule all:
     input:
         "results/cas_dataset.csv",
-        "results/linear_model/predictions.csv",
-        "results/mlp_model/predictions.csv"
+        "results/linear_model/scores",
+        "results/mlp_model/scores"
 
 rule download_data:
     output:
@@ -34,3 +34,12 @@ rule predict:
         "results/{model_name}_model/predictions.csv"
     shell:
         "sklearn_models predict {input} -o {output}"
+
+rule evaluate:
+    input:
+        "results/cas_dataset.csv",
+        "results/{model_name}_model/predictions.csv"
+    output:
+        directory("results/{model_name}_model/scores")
+    shell:
+        "evaluate {input} {output}"

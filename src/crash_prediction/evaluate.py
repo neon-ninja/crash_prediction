@@ -47,19 +47,21 @@ def evaluate(dset_file: Path, preds_file: Path, output_folder: Path):
     :param output_folder: output folder for the figures
     """
     dset = pd.read_csv(dset_file)
-    y = dset["crashSeverity"]
 
     y_prob = pd.read_csv(preds_file)
     y_pred = y_prob.idxmax(axis="columns")
 
     output_folder.mkdir(parents=True, exist_ok=True)
 
-    fig, ax = plt.subplots(figsize=(8, 8))
-    plot_confusion_matrix(y, y_pred, ax)
-    fig.savefig(output_folder / "confusion_matrix.png")
+    for fold, group in dset.groupby("fold"):
+        y = group["crashSeverity"]
 
-    fig = plot_calibration_curves(y, y_prob)
-    fig.savefig(output_folder / "calibration_curves.png")
+        fig, ax = plt.subplots(figsize=(8, 8))
+        plot_confusion_matrix(y, y_pred.loc[y.index], ax)
+        fig.savefig(output_folder / f"confusion_matrix__{fold}.png")
+
+        fig = plot_calibration_curves(y, y_prob.loc[y.index])
+        fig.savefig(output_folder / f"calibration_curves__{fold}.png")
 
 
 def main():
