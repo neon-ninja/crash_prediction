@@ -11,6 +11,7 @@ from sklearn.compose import make_column_transformer, make_column_selector
 from sklearn.pipeline import make_pipeline
 
 from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPClassifier
 
 
 def split_data(dset):
@@ -31,7 +32,7 @@ def load_model(model_path):
     return model
 
 
-def fit(
+def fit_linear(
     dset: T.Union[pd.DataFrame, Path],
     *,
     output_file: T.Optional[Path] = None,
@@ -53,9 +54,48 @@ def fit(
 
     columns_tf = make_column_transformer(
         (StandardScaler(), make_column_selector(dtype_include=np.number)),
-        (OneHotEncoder(), make_column_selector(dtype_include=object)),
+        (
+            OneHotEncoder(handle_unknown="ignore"),
+            make_column_selector(dtype_include=object),
+        ),
     )
     model = make_pipeline(columns_tf, LogisticRegression(verbose=verbose))
+    model.fit(X, y)
+
+    if output_file is not None:
+        save_model(model, output_file)
+
+    return model
+
+
+def fit_mlp(
+    dset: T.Union[pd.DataFrame, Path],
+    *,
+    output_file: T.Optional[Path] = None,
+    fold: str = "train",
+    verbose: bool = False,
+) -> BaseEstimator:
+    """Fit a multi-layer perceptron model
+
+    :param dset: CAS dataset
+    :param output_file: output .pickle file
+    :param fold: fold used for training
+    :param verbose: verbose mode
+    :returns: fitted model
+    """
+    if isinstance(dset, Path):
+        dset = pd.read_csv(dset)
+
+    X, y = split_data(dset[dset.fold == fold])
+
+    columns_tf = make_column_transformer(
+        (StandardScaler(), make_column_selector(dtype_include=np.number)),
+        (
+            OneHotEncoder(handle_unknown="ignore"),
+            make_column_selector(dtype_include=object),
+        ),
+    )
+    model = make_pipeline(columns_tf, MLPClassifier(verbose=verbose))
     model.fit(X, y)
 
     if output_file is not None:
@@ -70,7 +110,7 @@ def predict(
     *,
     output_file: T.Optional[Path] = None,
 ) -> pd.DataFrame:
-    """Predict crash severity from a scikit-learn model
+    """Make predictions from a fitted model
 
     :param dset: CAS dataset
     :param model: trained model
@@ -87,7 +127,7 @@ def predict(
     y_prob = pd.DataFrame(y_prob, columns=model.steps[1][1].classes_)
 
     if output_file is not None:
-        y_prob.to_csv(output_file)
+        y_prob.to_csv(output_file, index=False)
 
     return y_prob
 
@@ -95,6 +135,6 @@ def predict(
 def main():
     """wrapper function to create a CLI tool"""
     defopt.run(
-        [fit, predict],
+        [fit_linear, fit_mlp, predict],
         parsers={T.Union[pd.DataFrame, Path]: Path, T.Union[BaseEstimator, Path]: Path},
     )
