@@ -20,18 +20,6 @@ def split_data(dset):
     return X, y
 
 
-def save_model(model, model_path):
-    model_path.parent.mkdir(exist_ok=True, parents=True)
-    with model_path.open("wb") as fd:
-        pickle.dump(model, fd)
-
-
-def load_model(model_path):
-    with model_path.open("rb") as fd:
-        model = pickle.load(fd)
-    return model
-
-
 def fit_linear(
     dset: T.Union[pd.DataFrame, Path],
     *,
@@ -63,7 +51,8 @@ def fit_linear(
     model.fit(X, y)
 
     if output_file is not None:
-        save_model(model, output_file)
+        with output_file.open("wb") as fd:
+            pickle.dump(model, fd)
 
     return model
 
@@ -95,11 +84,12 @@ def fit_mlp(
             make_column_selector(dtype_include=object),
         ),
     )
-    model = make_pipeline(columns_tf, MLPClassifier(verbose=verbose))
+    model = make_pipeline(columns_tf, MLPClassifier(random_seed=42, verbose=verbose))
     model.fit(X, y)
 
     if output_file is not None:
-        save_model(model, output_file)
+        with output_file.open("wb") as fd:
+            pickle.dump(model, fd)
 
     return model
 
@@ -120,7 +110,8 @@ def predict(
     if isinstance(dset, Path):
         dset = pd.read_csv(dset)
     if isinstance(model, Path):
-        model = load_model(model)
+        with model.open("rb") as fd:
+            model = pickle.load(fd)
 
     X, _ = split_data(dset)
     y_prob = model.predict_proba(X)

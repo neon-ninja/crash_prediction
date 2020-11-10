@@ -19,7 +19,6 @@ def download(output_file: Path, url: str = CAS_DATA_URL):
     :param url: dataset URL
     """
     dset_web = requests.get(url)
-    output_file.parent.mkdir(exist_ok=True, parents=True)
     with output_file.open("wb") as fd:
         fd.write(dset_web.content)
 
@@ -91,7 +90,6 @@ def prepare(
     input_data.loc[input_data.index[-test_idx:], "fold"] = "test"
 
     if output_file is not None:
-        output_file.parent.mkdir(exist_ok=True, parents=True)
         input_data.to_csv(output_file, index=False)
 
     return input_data
