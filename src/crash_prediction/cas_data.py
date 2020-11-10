@@ -25,7 +25,10 @@ def download(output_file: Path, url: str = CAS_DATA_URL):
 
 
 def prepare(
-    input_data: T.Union[pd.DataFrame, Path], *, output_file: T.Optional[Path] = None
+    input_data: T.Union[pd.DataFrame, Path],
+    *,
+    output_file: T.Optional[Path] = None,
+    test_size: float = 0.2
 ) -> pd.DataFrame:
     """Prepare CAS dataset, cleaning unknown data and selecting features
 
@@ -33,6 +36,7 @@ def prepare(
 
     :param input_data: input CAS dataset
     :param output_file: output file to save preprocessed data
+    :param test_size: size of the test dataset, as a fraction of the full dataset
     :returns: preprocessed data
     """
 
@@ -79,9 +83,16 @@ def prepare(
     # homogenize unknown values representation
     input_data.replace("Null", "Unknown", inplace=True)
 
+    # sort by year and flag the last entries as test data
+    input_data.sort_values(by="crashYear", ascending=True, inplace=True)
+
+    test_idx = int(len(input_data) * test_size)
+    input_data["fold"] = "train"
+    input_data.loc[input_data.index[-test_idx:], "fold"] = "test"
+
     if output_file is not None:
         output_file.parent.mkdir(exist_ok=True, parents=True)
-        input_data.to_csv(output_file)
+        input_data.to_csv(output_file, index=False)
 
     return input_data
 
