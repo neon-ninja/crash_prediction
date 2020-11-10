@@ -35,7 +35,7 @@ def prepare(
     Note that `NumberOfLanes` may contains NaN values in the returned DataFrame.
 
     :param input_data: input CAS dataset
-    :param output_file: output file to save preprocessed data
+    :param output_file: output .csv file
     :param test_size: size of the test dataset, as a fraction of the full dataset
     :returns: preprocessed data
     """
