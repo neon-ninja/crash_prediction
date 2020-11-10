@@ -89,6 +89,9 @@ def prepare(
     input_data["fold"] = "train"
     input_data.loc[input_data.index[-test_idx:], "fold"] = "test"
 
+    # regroup serious and fatal crashes in the same class
+    input_data["crashSeverity"].replace("Fatal Crash", "Serious Crash", inplace=True)
+
     if output_file is not None:
         input_data.to_csv(output_file, index=False)
 
