@@ -6,7 +6,7 @@ rule all:
 
 rule download_data:
     output:
-        "data/cas_dataset"
+        "data/cas_dataset.csv"
     shell:
         "cas_data download {output}"
 

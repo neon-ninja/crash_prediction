@@ -84,7 +84,7 @@ def fit_mlp(
             make_column_selector(dtype_include=object),
         ),
     )
-    model = make_pipeline(columns_tf, MLPClassifier(random_seed=42, verbose=verbose))
+    model = make_pipeline(columns_tf, MLPClassifier(random_state=42, verbose=verbose))
     model.fit(X, y)
 
     if output_file is not None:
