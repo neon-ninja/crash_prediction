@@ -2,7 +2,8 @@ rule all:
     input:
         "results/cas_dataset.csv",
         "results/linear_model/scores",
-        "results/mlp_model/scores"
+        "results/mlp_model/scores",
+        "results/knn_model/scores"
 
 rule download_data:
     output:

@@ -12,6 +12,7 @@ from sklearn.pipeline import make_pipeline
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
+from sklearn.neighbors import KNeighborsClassifier
 
 
 def split_data(dset):
@@ -94,6 +95,37 @@ def fit_mlp(
     return model
 
 
+def fit_knn(
+    dset: T.Union[pd.DataFrame, Path],
+    *,
+    output_file: T.Optional[Path] = None,
+    fold: str = "train",
+    verbose: bool = False,
+) -> BaseEstimator:
+    """Fit a KNN model
+
+    :param dset: CAS dataset
+    :param output_file: output .pickle file
+    :param fold: fold used for training
+    :param verbose: verbose mode
+    :returns: fitted model
+    """
+    if isinstance(dset, Path):
+        dset = pd.read_csv(dset)
+
+    X, y = split_data(dset[dset.fold == fold])
+
+    columns_tf = make_column_transformer(("passthrough", ["X", "Y"]))
+    model = make_pipeline(columns_tf, KNeighborsClassifier())
+    model.fit(X, y)
+
+    if output_file is not None:
+        with output_file.open("wb") as fd:
+            pickle.dump(model, fd)
+
+    return model
+
+
 def predict(
     dset: T.Union[pd.DataFrame, Path],
     model: T.Union[BaseEstimator, Path],
@@ -126,6 +158,6 @@ def predict(
 def main():
     """wrapper function to create a CLI tool"""
     defopt.run(
-        [fit_linear, fit_mlp, predict],
+        [fit_linear, fit_mlp, fit_knn, predict],
         parsers={T.Union[pd.DataFrame, Path]: Path, T.Union[BaseEstimator, Path]: Path},
     )
