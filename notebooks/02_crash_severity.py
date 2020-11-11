@@ -19,6 +19,7 @@ sb.set()
 
 dset_path = Path("..") / "data" / "cas_dataset.csv"
 if not dset_path.exists():
+    dset_path.parent.mkdir(parents=True, exist_ok=True)
     cas_data.download(dset_path)
 
 # and load it.
