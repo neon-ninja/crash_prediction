@@ -15,8 +15,8 @@ from sklearn.neural_network import MLPClassifier
 
 
 def split_data(dset):
-    X = dset.drop(columns=["crashSeverity", "fold", "NumberOfLanes"])
-    y = dset["crashSeverity"]
+    X = dset.drop(columns=["injuryCrash", "fold", "NumberOfLanes"])
+    y = dset["injuryCrash"]
     return X, y
 
 
@@ -99,7 +99,7 @@ def predict(
     model: T.Union[BaseEstimator, Path],
     *,
     output_file: T.Optional[Path] = None,
-) -> pd.DataFrame:
+) -> pd.Series:
     """Make predictions from a fitted model
 
     :param dset: CAS dataset
@@ -115,7 +115,7 @@ def predict(
 
     X, _ = split_data(dset)
     y_prob = model.predict_proba(X)
-    y_prob = pd.DataFrame(y_prob, columns=model.steps[1][1].classes_)
+    y_prob = pd.Series(y_prob[:, 1], name="crashInjuryProb")
 
     if output_file is not None:
         y_prob.to_csv(output_file, index=False)

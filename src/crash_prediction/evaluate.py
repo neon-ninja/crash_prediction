@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 
 
 def plot_confusion_matrix(y, y_pred, ax=None):
-    labels = y.value_counts().index
-    conf_mtx = metrics.confusion_matrix(y, y_pred, labels=labels)
+    labels = ["Non-Injury Crashes", "Injury Crashes"]
+    conf_mtx = metrics.confusion_matrix(y, y_pred)
     return sb.heatmap(
         conf_mtx / conf_mtx.sum(),
         vmin=0,
@@ -24,16 +24,15 @@ def plot_confusion_matrix(y, y_pred, ax=None):
 
 
 def plot_calibration_curves(y, y_prob):
-    fig, axes = plt.subplots(1, y_prob.shape[1], figsize=(12, 5))
+    fig, ax = plt.subplots(figsize=(10, 7))
 
-    labels = y.value_counts().index
-    for ax, label in zip(axes, labels):
-        prob_true, prob_pred = calibration_curve(y == label, y_prob[label])
-        ax.plot([0, 1], [0, 1], "--k")
-        ax.plot(prob_true, prob_pred, "-o")
-        ax.set_title(label)
-        ax.set_xlabel("true probabilities")
-        ax.set_ylabel("predicted probabilities")
+    prob_true, prob_pred = calibration_curve(y, y_prob)
+    ax.plot([0, 1], [0, 1], "--k")
+    ax.plot(prob_true, prob_pred, "-o")
+    ax.set_title("Calibration curve")
+    ax.set_xlabel("true probabilities")
+    ax.set_ylabel("predicted probabilities")
+
     fig.tight_layout()
 
     return fig
@@ -49,12 +48,12 @@ def evaluate(dset_file: Path, preds_file: Path, output_folder: Path):
     dset = pd.read_csv(dset_file)
 
     y_prob = pd.read_csv(preds_file)
-    y_pred = y_prob.idxmax(axis="columns")
+    y_pred = y_prob > 0.5
 
     output_folder.mkdir(parents=True, exist_ok=True)
 
     for fold, group in dset.groupby("fold"):
-        y = group["crashSeverity"]
+        y = group["injuryCrash"]
 
         fig, ax = plt.subplots(figsize=(8, 8))
         plot_confusion_matrix(y, y_pred.loc[y.index], ax)

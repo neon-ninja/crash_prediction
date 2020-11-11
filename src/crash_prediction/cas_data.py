@@ -31,6 +31,10 @@ def prepare(
 ) -> pd.DataFrame:
     """Prepare CAS dataset, cleaning unknown data and selecting features
 
+    Only temporal, road and environmental features are kept. The target variable
+    is `crashSeverity` binarized into non-injury / injury crashes, called
+    `injuryCrash`.
+
     Note that `NumberOfLanes` may contains NaN values in the returned DataFrame.
 
     :param input_data: input CAS dataset
@@ -89,8 +93,9 @@ def prepare(
     input_data["fold"] = "train"
     input_data.loc[input_data.index[-test_idx:], "fold"] = "test"
 
-    # regroup serious and fatal crashes in the same class
-    input_data["crashSeverity"].replace("Fatal Crash", "Serious Crash", inplace=True)
+    # replace crash severity with non-injury / injury crash
+    input_data["injuryCrash"] = input_data["crashSeverity"] != "Non-Injury Crash"
+    input_data.drop(columns="crashSeverity", inplace=True)
 
     if output_file is not None:
         input_data.to_csv(output_file, index=False)
