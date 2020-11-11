@@ -11,7 +11,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import make_column_transformer, make_column_selector
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import GridSearchCV
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegressionCV
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
 
@@ -28,6 +28,7 @@ def fit_linear(
     output_file: T.Optional[Path] = None,
     fold: str = "train",
     verbose: bool = False,
+    n_jobs: int = 1,
 ) -> BaseEstimator:
     """Fit a logistic regression model
 
@@ -35,6 +36,7 @@ def fit_linear(
     :param output_file: output .pickle file
     :param fold: fold used for training
     :param verbose: verbose mode
+    :param n_jobs: number of jobs to use, -1 means all processors
     :returns: fitted model
     """
     if isinstance(dset, Path):
@@ -49,7 +51,12 @@ def fit_linear(
             make_column_selector(dtype_include=object),
         ),
     )
-    model = make_pipeline(columns_tf, LogisticRegression(verbose=verbose))
+    model = make_pipeline(
+        columns_tf,
+        LogisticRegressionCV(
+            max_iter=500, scoring="neg_log_loss", n_jobs=n_jobs, verbose=verbose
+        ),
+    )
     model.fit(X, y)
 
     if output_file is not None:
