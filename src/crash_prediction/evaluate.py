@@ -1,3 +1,4 @@
+import typing as T
 from pathlib import Path
 
 import defopt
@@ -80,7 +81,7 @@ def score(dset_file: Path, preds_file: Path, output_folder: Path):
     :param pred_file: predictions .csv file
     :param output_folder: output folder for the figures
     """
-    dset = pd.read_csv(dset_file)
+    dset = pd.read_csv(dset_file, usecols=["injuryCrash", "fold"])
     dset["y_prob"] = pd.read_csv(preds_file)
     dset["y_pred"] = dset["y_prob"] > 0.5
 
@@ -115,5 +116,37 @@ def score(dset_file: Path, preds_file: Path, output_folder: Path):
     fig.savefig(output_folder / "curves.png")
 
 
+def summarize(output_folder: Path, *score_file: Path, labels: T.Iterable[str] = ()):
+    """Generate summary plot and table
+
+    :param output_folder: directory to save figures (plots and tables)
+    :param score_file: CSV file containing scores for one method
+    :param labels: method name for each input dataset file
+    """
+
+    # use input filenames as labels if none are given
+    if not labels:
+        labels = [str(fname) for fname in score_filename]
+
+    # merge together all scores dataframes
+    scores = [pd.read_csv(fname) for fname in score_file]
+    scores = [pd.melt(score, id_vars="fold", var_name="metric") for score in scores]
+    scores = pd.concat([df.assign(label=label) for df, label in zip(scores, labels)])
+
+    # save the combined dataframe
+    output_folder.mkdir(parents=True, exist_ok=True)
+    scores.to_csv(output_folder / "summary.csv", index=False)
+
+    # plot scores in a grid and save the figure
+    scores = scores.sort_values(["label"])
+    grid = sb.FacetGrid(data=scores, col="metric", sharey=False, col_wrap=3)
+    grid.map_dataframe(
+        sb.barplot, x="label", y="value", hue="fold", hue_order=["train", "test"]
+    )
+    grid.set_xticklabels(rotation=45, ha="right")
+    grid.add_legend()
+    grid.fig.savefig(output_folder / "summary.png", bbox_inches="tight")
+
+
 def main():
-    defopt.run(score)
+    defopt.run([score, summarize])

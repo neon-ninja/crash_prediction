@@ -3,8 +3,8 @@ MODELS = ["linear", "mlp", "knn"]
 rule all:
     input:
         "results/cas_dataset.csv",
-        expand("results/{model_name}_model/scores.csv", model_name=MODELS),
-        expand("results/{model_name}_model/curves.png", model_name=MODELS)
+        "results/summary.csv",
+        "results/summary.png"
 
 rule download_data:
     output:
@@ -57,4 +57,15 @@ rule evaluate:
         "results/{model_name}_model/scores.csv",
         "results/{model_name}_model/curves.png"
     shell:
-        "evaluate {input} results/{wildcards.model_name}_model"
+        "evaluate score {input} results/{wildcards.model_name}_model"
+
+rule summarize:
+    input:
+        expand("results/{model_name}_model/scores.csv", model_name=MODELS)
+    output:
+        "results/summary.csv",
+        "results/summary.png"
+    params:
+        labels=" ".join(MODELS)
+    shell:
+        "evaluate summarize results {input} -l {params.labels}"
