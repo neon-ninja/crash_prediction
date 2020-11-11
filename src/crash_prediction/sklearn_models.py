@@ -5,11 +5,12 @@ from pathlib import Path
 import defopt
 import numpy as np
 import pandas as pd
+
 from sklearn.base import BaseEstimator
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import make_column_transformer, make_column_selector
 from sklearn.pipeline import make_pipeline
-
+from sklearn.model_selection import GridSearchCV
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
@@ -101,13 +102,21 @@ def fit_knn(
     output_file: T.Optional[Path] = None,
     fold: str = "train",
     verbose: bool = False,
+    min_neighbors: int = 1,
+    max_neighbors: int = 20,
+    n_jobs: int = 1,
 ) -> BaseEstimator:
     """Fit a KNN model
+
+    The number of neighbors is selected via cross-validation.
 
     :param dset: CAS dataset
     :param output_file: output .pickle file
     :param fold: fold used for training
     :param verbose: verbose mode
+    :param min_neighbors: minimum number of neighbors ot use
+    :param max_neighbors: maximum number of neighbors ot use
+    :param n_jobs: number of jobs to use, -1 means all processors
     :returns: fitted model
     """
     if isinstance(dset, Path):
@@ -117,6 +126,18 @@ def fit_knn(
 
     columns_tf = make_column_transformer(("passthrough", ["X", "Y"]))
     model = make_pipeline(columns_tf, KNeighborsClassifier())
+
+    param_grid = {
+        "kneighborsclassifier__n_neighbors": np.arange(min_neighbors, max_neighbors + 1)
+    }
+    model = GridSearchCV(
+        model,
+        param_grid,
+        scoring="neg_log_loss",
+        verbose=verbose,
+        n_jobs=n_jobs,
+    )
+
     model.fit(X, y)
 
     if output_file is not None:
