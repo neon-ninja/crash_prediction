@@ -1,9 +1,10 @@
+MODELS = ["linear", "mlp", "knn"]
+
 rule all:
     input:
         "results/cas_dataset.csv",
-        "results/linear_model/scores",
-        "results/mlp_model/scores",
-        "results/knn_model/scores"
+        expand("results/{model_name}_model/scores.csv", model_name=MODELS),
+        expand("results/{model_name}_model/curves.png", model_name=MODELS)
 
 rule download_data:
     output:
@@ -27,6 +28,18 @@ rule fit_model:
     shell:
         "sklearn_models fit-{wildcards.model_name} {input} -o {output} -v"
 
+
+rule fit_knn:
+    input:
+        "results/cas_dataset.csv"
+    output:
+        "results/knn_model/model.pickle"
+    threads:
+        min(workflow.cores, 4)
+    shell:
+        "sklearn_models fit-knn {input} -o {output} -v --n-jobs {threads}"
+
+
 rule predict:
     input:
         "results/cas_dataset.csv",
@@ -41,6 +54,7 @@ rule evaluate:
         "results/cas_dataset.csv",
         "results/{model_name}_model/predictions.csv"
     output:
-        directory("results/{model_name}_model/scores")
+        "results/{model_name}_model/scores.csv",
+        "results/{model_name}_model/curves.png"
     shell:
-        "evaluate {input} {output}"
+        "evaluate {input} results/{wildcards.model_name}_model"

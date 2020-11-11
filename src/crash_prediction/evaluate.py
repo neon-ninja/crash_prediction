@@ -3,42 +3,77 @@ from pathlib import Path
 import defopt
 import pandas as pd
 import seaborn as sb
-import sklearn.metrics as metrics
-from sklearn.calibration import calibration_curve
 import matplotlib.pyplot as plt
 
-
-def plot_confusion_matrix(y, y_pred, ax=None):
-    labels = ["Non-Injury Crashes", "Injury Crashes"]
-    conf_mtx = metrics.confusion_matrix(y, y_pred)
-    return sb.heatmap(
-        conf_mtx / conf_mtx.sum(),
-        vmin=0,
-        vmax=1,
-        xticklabels=labels,
-        yticklabels=labels,
-        fmt=".2%",
-        annot=True,
-        ax=ax,
-    )
+import sklearn.metrics as metrics
+from sklearn.calibration import calibration_curve
 
 
-def plot_calibration_curves(y, y_prob):
-    fig, ax = plt.subplots(figsize=(10, 7))
+def plot_calibration_curves(dset, ax=None):
+    if ax is None:
+        _, ax = plt.subplots()
 
-    prob_true, prob_pred = calibration_curve(y, y_prob)
     ax.plot([0, 1], [0, 1], "--k")
-    ax.plot(prob_true, prob_pred, "-o")
-    ax.set_title("Calibration curve")
-    ax.set_xlabel("true probabilities")
-    ax.set_ylabel("predicted probabilities")
 
-    fig.tight_layout()
+    for key, group in dset.groupby("fold"):
+        prob_true, prob_pred = calibration_curve(group["injuryCrash"], group["y_prob"])
+        ax.plot(prob_true, prob_pred, "-o", label=key)
 
-    return fig
+    ax.grid(True)
+    ax.set_xlabel("True probabilities")
+    ax.set_ylabel("Predicted probabilities")
+    ax.legend()
+
+    return ax
 
 
-def evaluate(dset_file: Path, preds_file: Path, output_folder: Path):
+def plot_roc_curves(dset, ax=None):
+    if ax is None:
+        _, ax = plt.subplots()
+
+    ax.plot([0, 1], [0, 1], "k--")
+
+    for key, group in dset.groupby("fold"):
+        fpr, tpr, _ = metrics.roc_curve(group["injuryCrash"], group["y_prob"])
+        ax.plot(fpr, tpr, label=key)
+
+    ax.grid(True)
+    ax.set_xlabel("False positive rate")
+    ax.set_ylabel("True positive rate")
+    ax.legend()
+
+    return ax
+
+
+def plot_precision_recall(dset, ax=None):
+    if ax is None:
+        _, ax = plt.subplots()
+
+    for key, group in dset.groupby("fold"):
+        precision, recall, _ = metrics.precision_recall_curve(
+            group["injuryCrash"], group["y_prob"]
+        )
+        ax.plot(recall, precision, label=key)
+
+    ax.grid(True)
+    ax.set_xlim([0, 1])
+    ax.set_ylim([0, 1])
+    ax.set_xlabel("Recall")
+    ax.set_ylabel("Precision")
+    ax.legend()
+
+    return ax
+
+
+METRICS_FCN = {
+    "accuracy": metrics.accuracy_score,
+    "F1": metrics.f1_score,
+    "precision": metrics.precision_score,
+    "recall": metrics.recall_score,
+}
+
+
+def score(dset_file: Path, preds_file: Path, output_folder: Path):
     """Score and plots results
 
     :param dset_file: CAS dataset .csv file
@@ -46,22 +81,39 @@ def evaluate(dset_file: Path, preds_file: Path, output_folder: Path):
     :param output_folder: output folder for the figures
     """
     dset = pd.read_csv(dset_file)
-
-    y_prob = pd.read_csv(preds_file)
-    y_pred = y_prob > 0.5
+    dset["y_prob"] = pd.read_csv(preds_file)
+    dset["y_pred"] = dset["y_prob"] > 0.5
 
     output_folder.mkdir(parents=True, exist_ok=True)
 
-    for fold, group in dset.groupby("fold"):
-        y = group["injuryCrash"]
+    # generate scores for each defined metric
+    def score_fold(x):
+        scores = {
+            key: metric_fcn(x["injuryCrash"], x["y_pred"])
+            for key, metric_fcn in METRICS_FCN.items()
+        }
+        scores["neg_log_loss"] = metrics.log_loss(x["injuryCrash"], x["y_prob"])
+        scores["roc_auc"] = metrics.roc_auc_score(x["injuryCrash"], x["y_prob"])
+        return pd.Series(scores)
 
-        fig, ax = plt.subplots(figsize=(8, 8))
-        plot_confusion_matrix(y, y_pred.loc[y.index], ax)
-        fig.savefig(output_folder / f"confusion_matrix__{fold}.png")
+    scores = dset.groupby("fold").apply(score_fold).reset_index()
+    scores.to_csv(output_folder / "scores.csv", index=False)
 
-        fig = plot_calibration_curves(y, y_prob.loc[y.index])
-        fig.savefig(output_folder / f"calibration_curves__{fold}.png")
+    # plot calibration, ROC and precision/recall curves
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+    plot_roc_curves(dset, ax=axes[0])
+    axes[0].set_title("ROC curve")
+
+    plot_precision_recall(dset, ax=axes[1])
+    axes[1].set_title("Precision-Recall curve")
+
+    plot_calibration_curves(dset, ax=axes[2])
+    axes[2].set_title("Calibration curve")
+
+    fig.tight_layout()
+    fig.savefig(output_folder / "curves.png")
 
 
 def main():
-    defopt.run(evaluate)
+    defopt.run(score)
