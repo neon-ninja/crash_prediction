@@ -157,7 +157,7 @@ def fit_mlp(
     if use_slurm:
         cluster, client = start_slurm_cluster(4, "2GB", walltime, jobs, dask_folder)
     else:
-        client = Client(n_workers=jobs)
+        client = Client(n_workers=jobs, local_directory=dask_folder)
 
     model.fit(X, y)
 
