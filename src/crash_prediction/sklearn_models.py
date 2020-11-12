@@ -5,19 +5,20 @@ from pathlib import Path
 import defopt
 import numpy as np
 import pandas as pd
+import scipy.stats as st
 
 from sklearn.base import BaseEstimator
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import make_column_transformer, make_column_selector
 from sklearn.pipeline import make_pipeline
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
 
 
 def split_data(dset):
-    X = dset.drop(columns=["injuryCrash", "fold", "NumberOfLanes"])
+    X = dset.drop(columns=["injuryCrash", "fold", "NumberOfLanes", "crashYear"])
     y = dset["injuryCrash"]
     return X, y
 
@@ -51,12 +52,14 @@ def fit_linear(
             make_column_selector(dtype_include=object),
         ),
     )
+
     model = make_pipeline(
         columns_tf,
         LogisticRegressionCV(
             max_iter=500, scoring="neg_log_loss", n_jobs=n_jobs, verbose=verbose
         ),
     )
+
     model.fit(X, y)
 
     if output_file is not None:
@@ -72,6 +75,8 @@ def fit_mlp(
     output_file: T.Optional[Path] = None,
     fold: str = "train",
     verbose: bool = False,
+    n_iter: int = 10,
+    n_jobs: int = 1,
 ) -> BaseEstimator:
     """Fit a multi-layer perceptron model
 
@@ -79,6 +84,8 @@ def fit_mlp(
     :param output_file: output .pickle file
     :param fold: fold used for training
     :param verbose: verbose mode
+    :param n_iter: number of random configurations to test
+    :param n_jobs: number of jobs to use, -1 means all processors
     :returns: fitted model
     """
     if isinstance(dset, Path):
@@ -93,7 +100,22 @@ def fit_mlp(
             make_column_selector(dtype_include=object),
         ),
     )
-    model = make_pipeline(columns_tf, MLPClassifier(random_state=42, verbose=verbose))
+    model = make_pipeline(columns_tf, MLPClassifier(random_state=42))
+
+    param_space = {
+        "mlpclassifier__alpha": st.loguniform(1e-5, 1e-2),
+        "mlpclassifier__learning_rate_init": st.loguniform(1e-4, 1e-1),
+    }
+    model = RandomizedSearchCV(
+        model,
+        param_space,
+        scoring="neg_log_loss",
+        n_iter=n_iter,
+        random_state=42,
+        verbose=verbose,
+        n_jobs=n_jobs,
+    )
+
     model.fit(X, y)
 
     if output_file is not None:
@@ -109,8 +131,6 @@ def fit_knn(
     output_file: T.Optional[Path] = None,
     fold: str = "train",
     verbose: bool = False,
-    min_neighbors: int = 1,
-    max_neighbors: int = 20,
     n_jobs: int = 1,
 ) -> BaseEstimator:
     """Fit a KNN model
@@ -121,8 +141,6 @@ def fit_knn(
     :param output_file: output .pickle file
     :param fold: fold used for training
     :param verbose: verbose mode
-    :param min_neighbors: minimum number of neighbors ot use
-    :param max_neighbors: maximum number of neighbors ot use
     :param n_jobs: number of jobs to use, -1 means all processors
     :returns: fitted model
     """
@@ -135,14 +153,10 @@ def fit_knn(
     model = make_pipeline(columns_tf, KNeighborsClassifier())
 
     param_grid = {
-        "kneighborsclassifier__n_neighbors": np.arange(min_neighbors, max_neighbors + 1)
+        "kneighborsclassifier__n_neighbors": [1, 5, 10, 20, 50, 100, 200, 500]
     }
     model = GridSearchCV(
-        model,
-        param_grid,
-        scoring="neg_log_loss",
-        verbose=verbose,
-        n_jobs=n_jobs,
+        model, param_grid, scoring="neg_log_loss", verbose=verbose, n_jobs=n_jobs
     )
 
     model.fit(X, y)

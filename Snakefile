@@ -28,19 +28,7 @@ rule fit_model:
     threads:
         min(workflow.cores, 10)
     shell:
-        "sklearn_models fit-{wildcards.model_name} {input} -o {output} -v -n {threads}"
-
-
-rule fit_knn:
-    input:
-        "results/cas_dataset.csv"
-    output:
-        "results/knn_model/model.pickle"
-    threads:
-        min(workflow.cores, 4)
-    shell:
-        "sklearn_models fit-knn {input} -o {output} -v -n {threads}"
-
+        "sklearn_models fit-{wildcards.model_name} {input} -o {output} -v --n-jobs {threads}"
 
 rule predict:
     input:

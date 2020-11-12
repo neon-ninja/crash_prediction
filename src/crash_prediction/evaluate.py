@@ -126,7 +126,7 @@ def summarize(output_folder: Path, *score_file: Path, labels: T.Iterable[str] = 
 
     # use input filenames as labels if none are given
     if not labels:
-        labels = [str(fname) for fname in score_filename]
+        labels = [str(fname) for fname in score_file]
 
     # merge together all scores dataframes
     scores = [pd.read_csv(fname) for fname in score_file]
