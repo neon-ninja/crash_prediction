@@ -16,8 +16,15 @@ from sklearn.linear_model import LogisticRegressionCV
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
 
+import joblib
+import dask
+from dask.distributed import Client
+from dask_jobqueue import SLURMCluster
+
 
 def split_data(dset):
+    # TODO use crashYear
+    # TODO allow using NumberOfLanes, maybe using imputation for NaNs
     X = dset.drop(columns=["injuryCrash", "fold", "NumberOfLanes", "crashYear"])
     y = dset["injuryCrash"]
     return X, y
@@ -69,6 +76,31 @@ def fit_linear(
     return model
 
 
+def start_slurm_cluster(
+    cores_per_worker, mem_per_worker, walltime, n_workers, dask_folder
+):
+    dask.config.set(
+        {
+            "distributed.worker.memory.target": False,  # avoid spilling to disk
+            "distributed.worker.memory.spill": False,  # avoid spilling to disk
+        }
+    )
+    cluster = SLURMCluster(
+        cores=cores_per_worker,
+        processes=1,
+        memory=mem_per_worker,
+        walltime=walltime,
+        log_directory=dask_folder / "logs",  # folder for SLURM logs for each worker
+        local_directory=dask_folder,  # folder for workers data
+    )
+
+    cluster.scale(n=n_workers)
+    client = Client(cluster)
+    client.wait_for_workers(1)
+
+    return cluster, client
+
+
 def fit_mlp(
     dset: T.Union[pd.DataFrame, Path],
     *,
@@ -76,7 +108,10 @@ def fit_mlp(
     fold: str = "train",
     verbose: bool = False,
     n_iter: int = 10,
-    n_jobs: int = 1,
+    jobs: int = 1,
+    dask_folder: Path = Path.cwd() / "dask",
+    use_slurm: bool = False,
+    walltime: str = "0-00:30",
 ) -> BaseEstimator:
     """Fit a multi-layer perceptron model
 
@@ -85,7 +120,10 @@ def fit_mlp(
     :param fold: fold used for training
     :param verbose: verbose mode
     :param n_iter: number of random configurations to test
-    :param n_jobs: number of jobs to use, -1 means all processors
+    :param jobs: number of jobs to use, -1 means all processors
+    :param dask_folder: folder to keep Dask workers temporary data
+    :param use_slurm: use Slurm as backend for jobs, via Dask
+    :param walltime: maximum time for Dask workers (for Slurm)
     :returns: fitted model
     """
     if isinstance(dset, Path):
@@ -100,7 +138,9 @@ def fit_mlp(
             make_column_selector(dtype_include=object),
         ),
     )
-    model = make_pipeline(columns_tf, MLPClassifier(random_state=42))
+    model = make_pipeline(
+        columns_tf, MLPClassifier(random_state=42, early_stopping=True)
+    )
 
     param_space = {
         "mlpclassifier__alpha": st.loguniform(1e-5, 1e-2),
@@ -113,10 +153,15 @@ def fit_mlp(
         n_iter=n_iter,
         random_state=42,
         verbose=verbose,
-        n_jobs=n_jobs,
     )
 
-    model.fit(X, y)
+    if use_slurm:
+        cluster, client = start_slurm_cluster(4, "4GB", walltime, jobs, dask_folder)
+    else:
+        client = Client(n_workers=jobs)
+
+    with joblib.parallel_backend("dask", scatter=[X, y]):
+        model.fit(X, y)
 
     if output_file is not None:
         with output_file.open("wb") as fd:
