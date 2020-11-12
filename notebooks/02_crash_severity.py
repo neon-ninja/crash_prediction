@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import scipy.stats as st
 import matplotlib.pyplot as plt
 import seaborn as sb
 
@@ -96,6 +97,38 @@ fig.tight_layout()
 # The crash severity is probably a good go-to target, as it's quite
 # interpretable and actionable. The corresponding ML problem is a supervised
 # multi-class prediction problem.
+
+# TODO document this part
+
+dset["X_bin"] = pd.cut(dset["X"], 30000)
+dset["Y_bin"] = pd.cut(dset["Y"], 30000)
+
+counts = (
+    dset.groupby(["X_bin", "Y_bin"], observed=True)
+    .size()
+    .reset_index(name="crashesCounts")
+)
+severe_counts = (
+    dset.groupby(["X_bin", "Y_bin"], observed=True)
+    .apply(lambda x: (x["crashSeverity"] != "Non-Injury Crash").sum())
+    .reset_index(name="severeCounts")
+)
+
+counts = counts.merge(severe_counts)
+counts["severeRatio"] = counts["severeCounts"] / counts["crashesCounts"]
+
+ratio = counts.loc[counts["crashesCounts"] > 300, "severeRatio"].median()
+xs = np.linspace(counts["crashesCounts"].min(), counts["crashesCounts"].max(), 100)
+counts_rvs = st.binom(xs, ratio)
+
+lower_bound = st.binom(xs, ratio).ppf(0.025) / xs
+upper_bound = st.binom(xs, ratio).ppf(0.975) / xs
+
+ax = counts.plot.scatter(
+    x="crashesCounts", y="severeRatio", alpha=0.3, c="b", s=2, figsize=(10, 7)
+)
+ax.plot(xs, lower_bound, "-k")
+ax.plot(xs, upper_bound, "-k")
 
 # ---
 # ## Original computing environment
