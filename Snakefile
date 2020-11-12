@@ -3,8 +3,7 @@ MODELS = ["linear", "mlp", "knn"]
 rule all:
     input:
         "results/cas_dataset.csv",
-        "results/summary.csv",
-        "results/summary.png"
+        multiext("results/summary", ".csv", ".png")
 
 rule download_data:
     output:
@@ -28,7 +27,19 @@ rule fit_model:
     threads:
         min(workflow.cores, 10)
     shell:
-        "sklearn_models fit-{wildcards.model_name} {input} -o {output} --n-jobs {threads}"
+        "sklearn_models fit-{wildcards.model_name} {input} -o {output}"
+
+rule fit_mlp:
+    input:
+        "results/cas_dataset.csv"
+    output:
+        "results/mlp_model/model.pickle"
+    threads:
+        min(workflow.cores, 10)
+    params:
+        use_slurm="--use-slurm" if "SLURM_NODELIST" in os.environ else ""
+    shell:
+        "sklearn_models fit-mlp {input} -o {output} --n-jobs {threads} {params.use_slurm}"
 
 rule predict:
     input:
@@ -53,8 +64,7 @@ rule summarize:
     input:
         expand("results/{model_name}_model/scores.csv", model_name=MODELS)
     output:
-        "results/summary.csv",
-        "results/summary.png"
+        multiext("results/summary", ".csv", ".png")
     params:
         labels=" ".join(MODELS)
     shell:
