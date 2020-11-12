@@ -11,15 +11,15 @@ from sklearn.base import BaseEstimator
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import make_column_transformer, make_column_selector
 from sklearn.pipeline import make_pipeline
-from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
+from sklearn.model_selection import GridSearchCV
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
 
-import joblib
 import dask
 from dask.distributed import Client
 from dask_jobqueue import SLURMCluster
+import dask_ml.model_selection as dcv
 
 
 def split_data(dset):
@@ -146,22 +146,20 @@ def fit_mlp(
         "mlpclassifier__alpha": st.loguniform(1e-5, 1e-2),
         "mlpclassifier__learning_rate_init": st.loguniform(1e-4, 1e-1),
     }
-    model = RandomizedSearchCV(
+    model = dcv.RandomizedSearchCV(
         model,
         param_space,
         scoring="neg_log_loss",
         n_iter=n_iter,
         random_state=42,
-        verbose=verbose,
     )
 
     if use_slurm:
-        cluster, client = start_slurm_cluster(4, "4GB", walltime, jobs, dask_folder)
+        cluster, client = start_slurm_cluster(4, "2GB", walltime, jobs, dask_folder)
     else:
         client = Client(n_workers=jobs)
 
-    with joblib.parallel_backend("dask", scatter=[X, y]):
-        model.fit(X, y)
+    model.fit(X, y)
 
     if output_file is not None:
         with output_file.open("wb") as fd:

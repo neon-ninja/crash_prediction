@@ -28,7 +28,7 @@ rule fit_model:
     threads:
         min(workflow.cores, 10)
     shell:
-        "sklearn_models fit-{wildcards.model_name} {input} -o {output} -v --n-jobs {threads}"
+        "sklearn_models fit-{wildcards.model_name} {input} -o {output} --n-jobs {threads}"
 
 rule predict:
     input:
