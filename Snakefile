@@ -24,22 +24,30 @@ rule fit_model:
         "results/cas_dataset.csv"
     output:
         "results/{model_name}_model/model.pickle"
-    threads:
-        min(workflow.cores, 10)
+    threads: 10
     shell:
-        "sklearn_models fit-{wildcards.model_name} {input} -o {output}"
+        "sklearn_models fit-{wildcards.model_name} {input} -o {output} -j {threads}"
+
+# check wether we are running in a Slurm job (e.g. on jupyter.nesi.org.nz)
+SLURM = "SLURM_NODELIST" in os.environ
 
 rule fit_mlp:
     input:
         "results/cas_dataset.csv"
     output:
         "results/mlp_model/model.pickle"
-    threads:
-        min(workflow.cores, 10)
+    threads: 1 if SLURM else workflow.cores
     params:
-        use_slurm="--use-slurm" if "SLURM_NODELIST" in os.environ else ""
+        n_workers=10 if SLURM else 1,
+        threads_per_worker=4 if SLURM else workflow.cores,
+        use_slurm="--use-slurm" if SLURM else ""
     shell:
-        "sklearn_models fit-mlp {input} -o {output} --n-jobs {threads} {params.use_slurm}"
+        """
+        sklearn_models fit-mlp {input} -o {output} \
+            {params.use_slurm} \
+            --n-workers {params.n_workers} \
+            --threads-per-worker {params.threads_per_worker}
+        """
 
 rule predict:
     input:

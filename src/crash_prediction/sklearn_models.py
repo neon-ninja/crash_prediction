@@ -35,7 +35,7 @@ def fit_linear(
     output_file: T.Optional[Path] = None,
     fold: str = "train",
     verbose: bool = False,
-    n_jobs: int = 1,
+    jobs: int = 1,
 ) -> BaseEstimator:
     """Fit a logistic regression model
 
@@ -43,7 +43,7 @@ def fit_linear(
     :param output_file: output .pickle file
     :param fold: fold used for training
     :param verbose: verbose mode
-    :param n_jobs: number of jobs to use, -1 means all processors
+    :param jobs: number of jobs to use, -1 means all processors
     :returns: fitted model
     """
     if isinstance(dset, Path):
@@ -62,7 +62,7 @@ def fit_linear(
     model = make_pipeline(
         columns_tf,
         LogisticRegressionCV(
-            max_iter=500, scoring="neg_log_loss", n_jobs=n_jobs, verbose=verbose
+            max_iter=500, scoring="neg_log_loss", n_jobs=jobs, verbose=verbose
         ),
     )
 
@@ -76,7 +76,7 @@ def fit_linear(
 
 
 def start_slurm_cluster(
-    cores_per_worker, mem_per_worker, walltime, n_workers, dask_folder
+    n_workers, cores_per_worker, mem_per_worker, walltime, dask_folder
 ):
     dask.config.set(
         {
@@ -107,7 +107,8 @@ def fit_mlp(
     fold: str = "train",
     verbose: bool = False,
     n_iter: int = 10,
-    jobs: int = 1,
+    n_workers: int = 1,
+    threads_per_worker: int = 4,
     dask_folder: Path = Path.cwd() / "dask",
     use_slurm: bool = False,
     walltime: str = "0-00:30",
@@ -119,10 +120,11 @@ def fit_mlp(
     :param fold: fold used for training
     :param verbose: verbose mode
     :param n_iter: number of random configurations to test
-    :param jobs: number of jobs to use, -1 means all processors
+    :param n_workers: number of Dask workers to use
+    :param threads_per_worker: number of cores per Dask worker
     :param dask_folder: folder to keep Dask workers temporary data
-    :param use_slurm: use Slurm as backend for jobs, via Dask
-    :param walltime: maximum time for Dask workers (for Slurm)
+    :param use_slurm: use Slurm as backend for Dask
+    :param walltime: maximum time for Dask workers (for Slurm backend only)
     :returns: fitted model
     """
     if isinstance(dset, Path):
@@ -154,9 +156,15 @@ def fit_mlp(
     )
 
     if use_slurm:
-        cluster, client = start_slurm_cluster(4, "2GB", walltime, jobs, dask_folder)
+        cluster, client = start_slurm_cluster(
+            n_workers, threads_per_worker, "2GB", walltime, dask_folder
+        )
     else:
-        client = Client(n_workers=jobs, local_directory=dask_folder)
+        client = Client(
+            n_workers=n_workers,
+            threads_per_worker=threads_per_worker,
+            local_directory=dask_folder,
+        )
 
     model.fit(X, y)
 
@@ -173,7 +181,7 @@ def fit_knn(
     output_file: T.Optional[Path] = None,
     fold: str = "train",
     verbose: bool = False,
-    n_jobs: int = 1,
+    jobs: int = 1,
 ) -> BaseEstimator:
     """Fit a KNN model
 
@@ -183,7 +191,7 @@ def fit_knn(
     :param output_file: output .pickle file
     :param fold: fold used for training
     :param verbose: verbose mode
-    :param n_jobs: number of jobs to use, -1 means all processors
+    :param jobs: number of jobs to use, -1 means all processors
     :returns: fitted model
     """
     if isinstance(dset, Path):
@@ -198,7 +206,7 @@ def fit_knn(
         "kneighborsclassifier__n_neighbors": [1, 5, 10, 20, 50, 100, 200, 500]
     }
     model = GridSearchCV(
-        model, param_grid, scoring="neg_log_loss", verbose=verbose, n_jobs=n_jobs
+        model, param_grid, scoring="neg_log_loss", verbose=verbose, n_jobs=jobs
     )
 
     model.fit(X, y)
