@@ -74,7 +74,9 @@ def prepare(
     input_data = input_data[features].copy()
 
     # remove NaN values where it's not obvious what they stand for
-    input_data.dropna(subset=["crashSHDescription", "region"], inplace=True)
+    input_data.dropna(
+        subset=["crashSHDescription", "region", "NumberOfLanes"], inplace=True
+    )
 
     # NaNs in "holiday" stands for regular days
     input_data["holiday"].fillna("Normal day", inplace=True)

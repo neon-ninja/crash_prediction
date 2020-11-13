@@ -24,8 +24,7 @@ import dask_ml.model_selection as dcv
 
 def split_data(dset):
     # TODO use crashYear
-    # TODO allow using NumberOfLanes, maybe using imputation for NaNs
-    X = dset.drop(columns=["injuryCrash", "fold", "NumberOfLanes", "crashYear"])
+    X = dset.drop(columns=["injuryCrash", "fold", "crashYear"])
     y = dset["injuryCrash"]
     return X, y
 
