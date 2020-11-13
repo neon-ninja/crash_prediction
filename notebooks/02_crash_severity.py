@@ -98,37 +98,118 @@ fig.tight_layout()
 # interpretable and actionable. The corresponding ML problem is a supervised
 # multi-class prediction problem.
 
-# TODO document this part
+# To simplify the problem, we can also just try to predict if a crash is going
+# to involve an injury (minor, severe or fatal) or none. Here is how it would
+# look like in Auckland
 
-dset["X_bin"] = pd.cut(dset["X"], 30000)
-dset["Y_bin"] = pd.cut(dset["Y"], 30000)
+dset_auckland["injuryCrash"] = (dset_auckland["crashSeverity"] > 1) * 1.0
+dset_auckland.plot.hexbin(
+    "X",
+    "Y",
+    "injuryCrash",
+    gridsize=500,
+    cmap="BuPu",
+    title="Crash with injury",
+    sharex=False,
+    figsize=(10, 10),
+)
+
+# Interestingly, the major axes do not pop up as saliently here, as we are
+# averaging instead of taking the local maxima.
+
+# This brings us to to the another question: is the fraction of crash with
+# injuries constant fraction of the number of crashes in an area? This would
+# imply that a simple binomial model can model locally binned data.
+
+# We first discretize space into 0.01° wide cells and count the total number of
+# crashes in each cell as well as the number of crashes with injuries.
+
+# +
+dset["X_bin"] = pd.cut(
+    dset["X"], pd.interval_range(dset.X.min(), dset.X.max(), freq=0.01)
+)
+dset["Y_bin"] = pd.cut(
+    dset["Y"], pd.interval_range(dset.Y.min(), dset.Y.max(), freq=0.01)
+)
 
 counts = (
-    dset.groupby(["X_bin", "Y_bin"], observed=True)
-    .size()
-    .reset_index(name="crashesCounts")
+    dset.groupby(["X_bin", "Y_bin"], observed=True).size().reset_index(name="crash")
 )
-severe_counts = (
+
+injury_counts = (
     dset.groupby(["X_bin", "Y_bin"], observed=True)
     .apply(lambda x: (x["crashSeverity"] != "Non-Injury Crash").sum())
-    .reset_index(name="severeCounts")
+    .reset_index(name="injury")
 )
 
-counts = counts.merge(severe_counts)
-counts["severeRatio"] = counts["severeCounts"] / counts["crashesCounts"]
+counts = counts.merge(injury_counts)
+# -
 
-ratio = counts.loc[counts["crashesCounts"] > 300, "severeRatio"].median()
-xs = np.linspace(counts["crashesCounts"].min(), counts["crashesCounts"].max(), 100)
-counts_rvs = st.binom(xs, ratio)
+# For each number of crashes in cells, we can check the fraction of crashes with
+# injuries. Here we see that cells with 1 or few crashes have a nearly 50/50
+# chance of injuries, compared to cells with a larger number of accidents, where
+# it goes down to about 20%.
 
-lower_bound = st.binom(xs, ratio).ppf(0.025) / xs
-upper_bound = st.binom(xs, ratio).ppf(0.975) / xs
-
-ax = counts.plot.scatter(
-    x="crashesCounts", y="severeRatio", alpha=0.3, c="b", s=2, figsize=(10, 7)
+injury_fraction = counts.groupby("crash").apply(
+    lambda x: x["injury"].sum() / x["crash"].sum()
 )
-ax.plot(xs, lower_bound, "-k")
-ax.plot(xs, upper_bound, "-k")
+ax = injury_fraction.plot(style=".", ylabel="fraction of injuries", figsize=(10, 7))
+ax.set_xscale("log")
+
+# Then we can also check how good is a binomial distribution at modeling binned
+# data, using it to derive a 95% predictive interval.
+
+ratio = counts["injury"].sum() / counts["crash"].sum()
+xs = np.arange(1, counts["crash"].max() + 1)
+pred_intervals = st.binom(xs, ratio).ppf([[0.025], [0.975]])
+
+# +
+fig, axes = plt.subplots(1, 2, figsize=(15, 7))
+
+counts.plot.scatter(x="crash", y="injury", alpha=0.3, c="b", s=2, ax=axes[0])
+axes[0].fill_between(
+    xs,
+    pred_intervals[0],
+    pred_intervals[1],
+    alpha=0.3,
+    color="r",
+    label="95% equal-tail interval for binomial",
+)
+axes[0].legend()
+
+counts.plot.scatter(x="crash", y="injury", alpha=0.3, c="b", s=2, ax=axes[1])
+axes[1].fill_between(
+    xs,
+    pred_intervals[0],
+    pred_intervals[1],
+    alpha=0.3,
+    color="r",
+    label="95% equal-tail interval for binomial",
+)
+axes[1].legend()
+axes[1].set_xscale("log")
+axes[1].set_yscale("log")
+# -
+
+# The predictive interval seems to have a poor coverage, overshooting the high
+# counts regions and being to narrow for the regions with hundreds of crashes.
+# We can compute the empirical coverage of these interval to check this.
+
+counts["covered"] = counts["injury"].between(
+    pred_intervals[0, counts["crash"] - 1], pred_intervals[1, counts["crash"] - 1]
+)
+print(f"95% predictive interval has {counts['covered'].mean() * 100:.2f}%.")
+
+print("95% predictive interval coverage per quartile of crash counts:")
+mask = counts["crash"] > 1
+counts[mask].groupby(pd.qcut(counts.loc[mask, "crash"], 4))["covered"].mean()
+
+# So it turns out that on a macro scale, the coverage of this simple model is
+# quite good, but if we split by number of crashes, the coverage isn't so good
+# anymore for the cells with higher number of crashes.
+#
+# Hence, including the number of crashes in a vicinity could be an relevant
+# predictor for the probability of crash with injury.
 
 # ---
 # ## Original computing environment
