@@ -1,4 +1,5 @@
-import threading
+import sys
+import signal
 from pathlib import Path
 
 import defopt
@@ -8,9 +9,7 @@ from dask.distributed import LocalCluster
 from dask_jobqueue import SLURMCluster
 
 
-def start_slurm_cluster(
-    n_workers, cores_per_worker, mem_per_worker, walltime, dask_folder
-):
+def slurm_cluster(n_workers, cores_per_worker, mem_per_worker, walltime, dask_folder):
     dask.config.set(
         {
             "distributed.worker.memory.target": False,  # avoid spilling to disk
@@ -25,11 +24,8 @@ def start_slurm_cluster(
         log_directory=dask_folder / "logs",  # folder for SLURM logs for each worker
         local_directory=dask_folder,  # folder for workers data
     )
-
     cluster.scale(n=n_workers)
-    client = Client(cluster)
-
-    return client
+    return cluster
 
 
 def dask_cluster(
@@ -53,7 +49,7 @@ def dask_cluster(
     :param mem_per_worker: maximum of RAM for workers (for Slurm backend only)
     """
     if use_slurm:
-        cluster = start_slurm_cluster(
+        cluster = slurm_cluster(
             n_workers, threads_per_worker, mem_per_worker, walltime, dask_folder
         )
     else:
@@ -63,16 +59,13 @@ def dask_cluster(
             local_directory=dask_folder,
         )
 
-    try:
-        for thread in threading.enumerate():
-            try:
-                thread.join()
-            except RuntimeError:
-                continue
-    except KeyboardInterrupt:
-        pass
-    
-    cluster.close()
+    def signal_handler(sig, frame):
+        cluster.close()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.pause()
 
 
 def main():

@@ -43,10 +43,10 @@ rule fit_mlp:
         use_slurm="--use-slurm" if SLURM else ""
     shell:
         """
-        sklearn_models fit-mlp {input} -o {output} \
-            {params.use_slurm} \
+        dask_cluster {params.use_slurm} \
             --n-workers {params.n_workers} \
-            --threads-per-worker {params.threads_per_worker}
+            --threads-per-worker {params.threads_per_worker} &
+        sklearn_models fit-mlp {input} -o {output} -s localhost:8786
         """
 
 rule predict:
