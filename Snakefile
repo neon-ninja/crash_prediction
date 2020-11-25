@@ -26,7 +26,7 @@ rule fit_model:
         "results/{model_name}_model/model.pickle"
     threads: 10
     shell:
-        "sklearn_models fit-{wildcards.model_name} {input} -o {output} -j {threads}"
+        "models fit-{wildcards.model_name} {input} -o {output} -j {threads}"
 
 # check wether we are running in a Slurm job (e.g. on jupyter.nesi.org.nz)
 SLURM = "SLURM_NODELIST" in os.environ
@@ -40,7 +40,7 @@ rule fit_mlp:
     params:
         slurm_config="-s config/mlp.yaml" if SLURM else ""
     shell:
-        "sklearn_models fit-mlp {input} -o {output} -j {threads} {params.slurm_config}"
+        "models fit-mlp {input} -o {output} -j {threads} {params.slurm_config}"
 
 rule predict:
     input:
@@ -49,7 +49,7 @@ rule predict:
     output:
         "results/{model_name}_model/predictions.csv"
     shell:
-        "sklearn_models predict {input} -o {output}"
+        "models predict {input} -o {output}"
 
 rule evaluate:
     input:
