@@ -1,8 +1,9 @@
-MODELS = ["linear", "mlp", "knn"]
+MODELS = ["linear", "mlp", "knn", "rf"]
 
 rule all:
     input:
         "results/cas_dataset.csv",
+        expand("results/{model_name}_model/scores.csv", model_name=MODELS),
         multiext("results/summary", ".csv", ".png")
 
 rule download_data:
@@ -38,9 +39,26 @@ rule fit_mlp:
         "results/mlp_model/model.pickle"
     threads: 1 if SLURM else 10
     params:
-        slurm_config="-s config/mlp.yaml" if SLURM else ""
+        slurm_config="-s config/mlp.yaml" if SLURM else "",
+        n_iter=50 if SLURM else 10
     shell:
-        "models fit-mlp {input} -o {output} -j {threads} {params.slurm_config}"
+        """
+        models fit-mlp {input} -o {output} -j {threads} {params.slurm_config} -n {params.n_iter}
+        """
+
+rule fit_rf:
+    input:
+        "results/cas_dataset.csv"
+    output:
+        "results/rf_model/model.pickle"
+    threads: 1 if SLURM else 10
+    params:
+        slurm_config="-s config/rf.yaml" if SLURM else "",
+        n_iter=50 if SLURM else 10
+    shell:
+        """
+        models fit-rf {input} -o {output} -j {threads} {params.slurm_config} -n {params.n_iter}
+        """
 
 rule predict:
     input:
