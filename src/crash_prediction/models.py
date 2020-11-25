@@ -284,6 +284,6 @@ def predict(
 def main():
     """wrapper function to create a CLI tool"""
     defopt.run(
-        [fit_linear, fit_mlp, fit_knn, predict],
+        [fit_linear, fit_mlp, fit_knn, fit_rf, predict],
         parsers={T.Union[pd.DataFrame, Path]: Path, T.Union[BaseEstimator, Path]: Path},
     )

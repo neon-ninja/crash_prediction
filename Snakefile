@@ -53,10 +53,9 @@ rule fit_rf:
     threads: 1 if SLURM else 10
     params:
         slurm_config="-s config/rf.yaml" if SLURM else "",
-        n_iter=50 if SLURM else 10
     shell:
         """
-        models fit-rf {input} -o {output} -j {threads} {params.slurm_config} -n {params.n_iter}
+        models fit-rf {input} -o {output} -j {threads} {params.slurm_config}
         """
 
 rule predict:
