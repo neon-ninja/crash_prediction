@@ -1,3 +1,5 @@
+SLURM = config.get("SLURM", False)
+
 MODELS = ["linear", "mlp", "knn", "rf"]
 
 rule all:
@@ -28,9 +30,6 @@ rule fit_model:
     threads: 10
     shell:
         "models fit-{wildcards.model_name} {input} -o {output} -j {threads}"
-
-# check wether we are running in a Slurm job (e.g. on jupyter.nesi.org.nz)
-SLURM = "SLURM_NODELIST" in os.environ
 
 rule fit_mlp:
     input:
