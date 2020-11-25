@@ -7,6 +7,7 @@ import defopt
 import numpy as np
 import pandas as pd
 import scipy.stats as st
+import yaml
 
 from sklearn.base import BaseEstimator
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -17,6 +18,9 @@ from sklearn.linear_model import LogisticRegressionCV
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
 
+import dask
+from dask.distributed import Client
+from dask_jobqueue import SLURMCluster
 import dask_ml.model_selection as dcv
 
 
@@ -25,6 +29,33 @@ def split_data(dset):
     X = dset.drop(columns=["injuryCrash", "fold", "crashYear"])
     y = dset["injuryCrash"]
     return X, y
+
+
+def slurm_cluster(n_workers, cores_per_worker, mem_per_worker, walltime, dask_folder):
+    """start a Dask Slurm-based cluster
+
+    :param n_workers: number of workers to use
+    :param cores_per_worker: number of cores per worker
+    :param mem_per_worker: maximum of RAM for workers
+    :param walltime: maximum time for workers
+    :param dask_folder: folder to keep workers temporary data
+    """
+    dask.config.set(
+        {
+            "distributed.worker.memory.target": False,  # avoid spilling to disk
+            "distributed.worker.memory.spill": False,  # avoid spilling to disk
+        }
+    )
+    cluster = SLURMCluster(
+        cores=cores_per_worker,
+        processes=1,
+        memory=mem_per_worker,
+        walltime=walltime,
+        log_directory=dask_folder / "logs",  # folder for SLURM logs for each worker
+        local_directory=dask_folder,  # folder for workers data
+    )
+    cluster.scale(n=n_workers)
+    return cluster
 
 
 def fit_linear(
@@ -80,7 +111,9 @@ def fit_mlp(
     fold: str = "train",
     verbose: bool = False,
     n_iter: int = 10,
-    scheduler: T.Optional[str] = None,
+    jobs: int = 1,
+    dask_folder: Path = Path.cwd() / "dask",
+    slurm_config: T.Optional[Path] = None,
 ) -> BaseEstimator:
     """Fit a multi-layer perceptron model
 
@@ -89,7 +122,9 @@ def fit_mlp(
     :param fold: fold used for training
     :param verbose: verbose mode
     :param n_iter: number of random configurations to test
-    :param scheduler: address of a dask scheduler, start a local cluster if None
+    :param jobs: number of jobs to use, ignored if a Dask cluster is used
+    :param dask_folder: folder to keep workers temporary data
+    :param slurm_config: Dask Slurm-based cluster .yaml configuration file
     :returns: fitted model
     """
     if isinstance(dset, Path):
@@ -120,9 +155,14 @@ def fit_mlp(
         random_state=42,
     )
 
-    client = Client(scheduler)
-    client.wait_for_workers(1)
+    if slurm_config is None:
+        client = Client(n_workers=jobs, local_directory=dask_folder)
+    else:
+        slurm_kwargs = yaml.safe_load(slurm_config.read_text())
+        cluster = slurm_cluster(**slurm_kwargs, dask_folder=dask_folder)
+        client = Client(cluster)
 
+    client.wait_for_workers(1)
     model.fit(X, y)
 
     if output_file is not None:

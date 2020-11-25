@@ -36,18 +36,11 @@ rule fit_mlp:
         "results/cas_dataset.csv"
     output:
         "results/mlp_model/model.pickle"
-    threads: 1 if SLURM else workflow.cores
+    threads: 1 if SLURM else 10
     params:
-        n_workers=10 if SLURM else 1,
-        threads_per_worker=4 if SLURM else workflow.cores,
-        use_slurm="--use-slurm" if SLURM else ""
+        slurm_config="-s config/mlp.yaml" if SLURM else ""
     shell:
-        """
-        dask_cluster {params.use_slurm} \
-            --n-workers {params.n_workers} \
-            --threads-per-worker {params.threads_per_worker} &
-        sklearn_models fit-mlp {input} -o {output} -s localhost:8786
-        """
+        "sklearn_models fit-mlp {input} -o {output} -j {threads} {params.slurm_config}"
 
 rule predict:
     input:
