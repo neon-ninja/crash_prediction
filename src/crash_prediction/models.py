@@ -52,16 +52,10 @@ def slurm_cluster(n_workers, cores_per_worker, mem_per_worker, walltime, dask_fo
     return cluster
 
 
-def split_data(dset, fold):
-    X = dset[dset.fold == fold].drop(columns="fold")
-    y = X.pop("injuryCrash")
-    return X, y
-
-
 def columns_transform():
     # TODO include year?
     return make_column_transformer(
-        ("drop", "crashYear"),
+        ("drop", ["crashYear"]),
         (StandardScaler(), make_column_selector(dtype_include=np.number)),
         (
             OneHotEncoder(handle_unknown="ignore"),
@@ -90,7 +84,8 @@ def fit_linear(
     if isinstance(dset, Path):
         dset = pd.read_csv(dset)
 
-    X, y = split_data(dset, fold)
+    X = dset[dset.fold == fold].drop(columns="fold")
+    y = X.pop("injuryCrash")
 
     model = LogisticRegressionCV(
         max_iter=500, scoring="neg_log_loss", n_jobs=jobs, verbose=verbose
@@ -132,7 +127,8 @@ def fit_mlp(
     if isinstance(dset, Path):
         dset = pd.read_csv(dset)
 
-    X, y = split_data(dset, fold)
+    X = dset[dset.fold == fold].drop(columns="fold")
+    y = X.pop("injuryCrash")
 
     model = MLPClassifier(random_state=42, early_stopping=True)
     model = make_pipeline(columns_transform(), model)
@@ -184,7 +180,8 @@ def fit_knn(
     if isinstance(dset, Path):
         dset = pd.read_csv(dset)
 
-    X, y = split_data(dset, fold)
+    X = dset[dset.fold == fold].drop(columns="fold")
+    y = X.pop("injuryCrash")
 
     columns_tf = make_column_transformer(("passthrough", ["X", "Y"]))
     model = make_pipeline(columns_tf, KNeighborsClassifier())
@@ -229,7 +226,8 @@ def fit_rf(
     if isinstance(dset, Path):
         dset = pd.read_csv(dset)
 
-    X, y = split_data(dset, fold)
+    X = dset[dset.fold == fold].drop(columns="fold")
+    y = X.pop("injuryCrash")
 
     model = RandomForestClassifier(random_state=42, verbose=verbose)
     model = make_pipeline(columns_transform(), model)
@@ -271,7 +269,8 @@ def predict(
         with model.open("rb") as fd:
             model = pickle.load(fd)
 
-    X, _ = split_data(dset)
+    X = dset.drop(columns=["injuryCrash", "fold"])
+
     y_prob = model.predict_proba(X)
     y_prob = pd.Series(y_prob[:, 1], name="crashInjuryProb")
 
