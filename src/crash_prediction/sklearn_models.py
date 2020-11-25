@@ -1,6 +1,7 @@
 import typing as T
 import pickle
 from pathlib import Path
+from functools import wraps
 
 import defopt
 import numpy as np
@@ -16,9 +17,6 @@ from sklearn.linear_model import LogisticRegressionCV
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
 
-import dask
-from dask.distributed import Client
-from dask_jobqueue import SLURMCluster
 import dask_ml.model_selection as dcv
 
 
@@ -75,31 +73,6 @@ def fit_linear(
     return model
 
 
-def start_slurm_cluster(
-    n_workers, cores_per_worker, mem_per_worker, walltime, dask_folder
-):
-    dask.config.set(
-        {
-            "distributed.worker.memory.target": False,  # avoid spilling to disk
-            "distributed.worker.memory.spill": False,  # avoid spilling to disk
-        }
-    )
-    cluster = SLURMCluster(
-        cores=cores_per_worker,
-        processes=1,
-        memory=mem_per_worker,
-        walltime=walltime,
-        log_directory=dask_folder / "logs",  # folder for SLURM logs for each worker
-        local_directory=dask_folder,  # folder for workers data
-    )
-
-    cluster.scale(n=n_workers)
-    client = Client(cluster)
-    client.wait_for_workers(1)
-
-    return cluster, client
-
-
 def fit_mlp(
     dset: T.Union[pd.DataFrame, Path],
     *,
@@ -107,11 +80,7 @@ def fit_mlp(
     fold: str = "train",
     verbose: bool = False,
     n_iter: int = 10,
-    n_workers: int = 1,
-    threads_per_worker: int = 4,
-    dask_folder: Path = Path.cwd() / "dask",
-    use_slurm: bool = False,
-    walltime: str = "0-00:30",
+    scheduler: T.Optional[str] = None,
 ) -> BaseEstimator:
     """Fit a multi-layer perceptron model
 
@@ -120,11 +89,7 @@ def fit_mlp(
     :param fold: fold used for training
     :param verbose: verbose mode
     :param n_iter: number of random configurations to test
-    :param n_workers: number of Dask workers to use
-    :param threads_per_worker: number of cores per Dask worker
-    :param dask_folder: folder to keep Dask workers temporary data
-    :param use_slurm: use Slurm as backend for Dask
-    :param walltime: maximum time for Dask workers (for Slurm backend only)
+    :param scheduler: address of a dask scheduler, start a local cluster if None
     :returns: fitted model
     """
     if isinstance(dset, Path):
@@ -155,16 +120,8 @@ def fit_mlp(
         random_state=42,
     )
 
-    if use_slurm:
-        cluster, client = start_slurm_cluster(
-            n_workers, threads_per_worker, "2GB", walltime, dask_folder
-        )
-    else:
-        client = Client(
-            n_workers=n_workers,
-            threads_per_worker=threads_per_worker,
-            local_directory=dask_folder,
-        )
+    client = Client(scheduler)
+    client.wait_for_workers(1)
 
     model.fit(X, y)
 
