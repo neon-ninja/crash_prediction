@@ -1,5 +1,6 @@
 import typing as T
 import pickle
+import itertools as it
 from enum import Enum
 from pathlib import Path
 
@@ -7,7 +8,6 @@ import defopt
 import numpy as np
 import pandas as pd
 import scipy.stats as st
-import yaml
 
 from sklearn.base import BaseEstimator
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -16,7 +16,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import ExtraTreesClassifier
 
 import joblib
 import dask
@@ -59,7 +59,13 @@ def fit_mlp(X, y, n_iter):
     model = MLPClassifier(random_state=42, early_stopping=True)
     model = make_pipeline(columns_transform(), model)
 
+    layers_options = [
+        [n_units] * n_layers
+        for n_units, n_layers in it.product(range(10, 110, 10), range(1, 4))
+        if n_units ** n_layers <= 10000
+    ]
     param_space = {
+        "mlpclassifier__hidden_layer_sizes": layers_options,
         "mlpclassifier__alpha": st.loguniform(1e-5, 1e-2),
         "mlpclassifier__learning_rate_init": st.loguniform(1e-4, 1e-1),
     }
@@ -87,7 +93,7 @@ def fit_knn(X, y, n_iter):
 
 def fit_rf(X, y, n_iter):
     """Fit a random forest model"""
-    model = RandomForestClassifier(random_state=42)
+    model = ExtraTreesClassifier(n_estimators=500, random_state=42)
     model = make_pipeline(columns_transform(), model)
 
     with joblib.parallel_backend("dask", scatter=[X, y]):

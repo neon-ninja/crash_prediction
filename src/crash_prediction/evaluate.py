@@ -121,7 +121,7 @@ def summarize(
 
     # use input filenames as labels if none are given
     if not labels:
-        labels = [str(fname) for fname in score_file]
+        labels = [str(fname) for fname in preds_file]
 
     dset = pd.read_csv(dset_file, usecols=["injuryCrash", "fold"])
 

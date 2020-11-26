@@ -5,6 +5,7 @@ MODELS = ["linear", "mlp", "knn", "rf"]
 rule all:
     input:
         "results/cas_dataset.csv",
+        expand("results/{model_name}_model/predictions.csv", model_name=MODELS),
         "results/summary",
 
 rule download_data:
