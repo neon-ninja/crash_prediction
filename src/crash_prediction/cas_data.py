@@ -39,6 +39,8 @@ def prepare(
     and future data for testing, therefore data are randomized only within each
     year.
 
+    Note: Chatham Islands data are removed.
+
     :param input_data: input CAS dataset
     :param output_file: output .csv file
     :param test_size: size of the test dataset, as a fraction of the full dataset
@@ -74,6 +76,9 @@ def prepare(
         "crashSeverity",
     ]
     input_data = input_data[features].copy()
+
+    # remove Chatham Islands
+    input_data = input_data[input_data.X > 0].copy()
 
     # remove NaN values where it's not obvious what they stand for
     input_data.dropna(
