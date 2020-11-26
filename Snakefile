@@ -1,4 +1,4 @@
-SLURM = config.get("SLURM", False)
+USE_SLURM = config.get("USE_SLURM", False)
 
 MODELS = ["linear", "mlp", "knn", "rf"]
 
@@ -22,18 +22,27 @@ rule prepare_data:
     shell:
         "cas_data prepare {input} -o {output}"
 
+
+def slurm_config(wildcards):
+    if wildcards.model_type == "knn":
+        config_file = "config/slurm_cluster_knn.yaml"
+    else:
+        config_file = "config/slurm_cluster.yaml"
+    return config_file
+
+
 rule fit:
     input:
         "results/cas_dataset.csv"
     output:
         "results/{model_type}_model/model.pickle"
-    threads: 1 if SLURM else 10
+    threads: 1 if USE_SLURM else 10
     params:
-        n_iter=50 if SLURM else 10,
-        slurm_config="-s config/mlp.yaml" if SLURM else ""
+        n_iter=50 if USE_SLURM else 10,
+        slurm_config=lambda wildcards: "-s " + slurm_config(wildcards) if USE_SLURM else ""
     shell:
         """
-        models fit-mlp {input} {output} -j {threads} -m {wildcards.model_type} \
+        models fit {input} {output} -j {threads} -m {wildcards.model_type} \
             -n {params.n_iter} {params.slurm_config}
         """
 

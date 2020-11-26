@@ -21,7 +21,6 @@ from sklearn.ensemble import RandomForestClassifier
 import joblib
 import dask
 from dask.distributed import Client
-from dask.diagnostics import ProgressBar
 from dask_jobqueue import SLURMCluster
 import dask_ml.model_selection as dcv
 
@@ -56,7 +55,7 @@ def fit_linear(X, y, n_iter):
 
 
 def fit_mlp(X, y, n_iter):
-    """Fit a multi-layer perceptron model"""
+    """Fit a simple multi-layer perceptron model"""
     model = MLPClassifier(random_state=42, early_stopping=True)
     model = make_pipeline(columns_transform(), model)
 
@@ -73,7 +72,7 @@ def fit_mlp(X, y, n_iter):
 
 
 def fit_knn(X, y, n_iter):
-    """Fit a KNN model"""
+    """Fit a KNN model on geographical coordinates only"""
     columns_tf = make_column_transformer(("passthrough", ["X", "Y"]))
     model = make_pipeline(columns_tf, KNeighborsClassifier())
 
@@ -97,10 +96,13 @@ def fit_rf(X, y, n_iter):
     return model
 
 
-def slurm_cluster(n_workers, cores_per_worker, mem_per_worker, walltime, dask_folder):
+def slurm_cluster(
+    min_workers, max_workers, cores_per_worker, mem_per_worker, walltime, dask_folder
+):
     """helper function to start a Dask Slurm-based cluster
 
-    :param n_workers: number of workers to use
+    :param min_workers: minimum number of workers to use
+    :param max_workers: maximum number of workers to use
     :param cores_per_worker: number of cores per worker
     :param mem_per_worker: maximum of RAM for workers
     :param walltime: maximum time for workers
@@ -120,11 +122,11 @@ def slurm_cluster(n_workers, cores_per_worker, mem_per_worker, walltime, dask_fo
         log_directory=dask_folder / "logs",  # folder for SLURM logs for each worker
         local_directory=dask_folder,  # folder for workers data
     )
-    cluster.scale(n=n_workers)
+    cluster.adapt(minimum=min_workers, maximum=max_workers)
     return cluster
 
 
-ModelType = Enum('ModelType', 'linear mlp knn rf')
+ModelType = Enum("ModelType", "linear mlp knn rf")
 
 
 def fit(
@@ -132,7 +134,6 @@ def fit(
     output_file: Path,
     *,
     model_type: ModelType = ModelType.linear,
-    fold: str = "train",
     n_iter: int = 10,
     jobs: int = 1,
     dask_folder: Path = Path.cwd() / "dask",
@@ -140,18 +141,21 @@ def fit(
 ) -> BaseEstimator:
     """Fit a model
 
+    Parallel computations are done via Dask, either using a local cluster of
+    `job` workers or a Slurm-based cluster if a .yaml configuration file is
+    provided (and code is running on a compatible HPC platform).
+
     :param dset: CAS dataset
     :param output_file: output .pickle file
     :param model_type: type of model to use
-    :param fold: fold used for training
     :param n_iter: budget for hyper-parameters optimization
-    :param jobs: number of CPU cores to use, ignored if a Dask cluster is used
+    :param jobs: number of local workers, ignored if using Dask Slurm-based cluster
     :param dask_folder: folder to keep workers temporary data
     :param slurm_config: Dask Slurm-based cluster .yaml configuration file
     :returns: fitted model
     """
     dset = pd.read_csv(dset)
-    X = dset[dset.fold == fold].drop(columns="fold")
+    X = dset[dset.fold == "train"].drop(columns="fold")
     y = X.pop("injuryCrash")
 
     # find function to fit the model in the global namespace
