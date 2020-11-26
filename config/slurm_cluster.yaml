@@ -1,5 +1,0 @@
-min_workers: 1
-max_workers: 100
-cores_per_worker: 4
-walltime: "0-00:30"
-mem_per_worker: "2GB"

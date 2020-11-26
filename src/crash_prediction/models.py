@@ -96,13 +96,10 @@ def fit_rf(X, y, n_iter):
     return model
 
 
-def slurm_cluster(
-    min_workers, max_workers, cores_per_worker, mem_per_worker, walltime, dask_folder
-):
+def slurm_cluster(n_workers, cores_per_worker, mem_per_worker, walltime, dask_folder):
     """helper function to start a Dask Slurm-based cluster
 
-    :param min_workers: minimum number of workers to use
-    :param max_workers: maximum number of workers to use
+    :param n_workers: maximum number of workers to use
     :param cores_per_worker: number of cores per worker
     :param mem_per_worker: maximum of RAM for workers
     :param walltime: maximum time for workers
@@ -122,8 +119,10 @@ def slurm_cluster(
         log_directory=dask_folder / "logs",  # folder for SLURM logs for each worker
         local_directory=dask_folder,  # folder for workers data
     )
-    cluster.adapt(minimum=min_workers, maximum=max_workers)
-    return cluster
+    cluster.adapt(minimum=1, maximum=n_workers)
+
+    client = Client(cluster)
+    return client
 
 
 ModelType = Enum("ModelType", "linear mlp knn rf")
@@ -134,24 +133,26 @@ def fit(
     output_file: Path,
     *,
     model_type: ModelType = ModelType.linear,
-    n_iter: int = 10,
-    jobs: int = 1,
+    n_iter: int = 50,
+    n_workers: int = 1,
+    cores_per_worker: int = 4,
     dask_folder: Path = Path.cwd() / "dask",
-    slurm_config: T.Optional[Path] = None,
+    mem_per_worker: str = "2GB",
+    walltime: str = "0-00:30",
+    use_slurm: bool = False,
 ) -> BaseEstimator:
     """Fit a model
-
-    Parallel computations are done via Dask, either using a local cluster of
-    `job` workers or a Slurm-based cluster if a .yaml configuration file is
-    provided (and code is running on a compatible HPC platform).
 
     :param dset: CAS dataset
     :param output_file: output .pickle file
     :param model_type: type of model to use
     :param n_iter: budget for hyper-parameters optimization
-    :param jobs: number of local workers, ignored if using Dask Slurm-based cluster
+    :param n_workers: number of workers to use, maximum number for Slurm backend
+    :param cores_per_worker: number of cores per worker
     :param dask_folder: folder to keep workers temporary data
-    :param slurm_config: Dask Slurm-based cluster .yaml configuration file
+    :param mem_per_worker: maximum of RAM for workers, only for Slurm backend
+    :param walltime: maximum time for workers, only for Slurm backend
+    :param use_slurm: use Slurm backend for the Dask cluster
     :returns: fitted model
     """
     dset = pd.read_csv(dset)
@@ -162,12 +163,20 @@ def fit(
     model_func = globals()["fit_" + model_type.name]
 
     # start a Dask cluster, local by default, use a configuration file for Slurm
-    if slurm_config is None:
-        client = Client(n_workers=jobs, local_directory=dask_folder)
+    if use_slurm:
+        client = slurm_cluster(
+            n_workers=n_workers,
+            cores_per_worker=cores_per_worker,
+            mem_per_worker=mem_per_worker,
+            walltime=walltime,
+            dask_folder=dask_folder,
+        )
     else:
-        slurm_kwargs = yaml.safe_load(slurm_config.read_text())
-        cluster = slurm_cluster(**slurm_kwargs, dask_folder=dask_folder)
-        client = Client(cluster)
+        client = Client(
+            n_workers=n_workers,
+            threads_per_worker=cores_per_worker,
+            local_directory=dask_folder,
+        )
 
     client.wait_for_workers(1)
     model = model_func(X, y, n_iter=n_iter)
