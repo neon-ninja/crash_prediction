@@ -26,10 +26,11 @@ import dask_ml.model_selection as dcv
 
 
 def columns_transform():
-    # TODO include year?
     return make_column_transformer(
-        ("drop", ["crashYear"]),
-        (StandardScaler(), make_column_selector(dtype_include=np.number)),
+        (
+            StandardScaler(),
+            make_column_selector("^(?!crashYear)", dtype_include=np.number),
+        ),
         (
             OneHotEncoder(handle_unknown="ignore"),
             make_column_selector(dtype_include=object),
