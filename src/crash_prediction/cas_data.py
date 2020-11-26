@@ -35,7 +35,9 @@ def prepare(
     is `crashSeverity` binarized into non-injury / injury crashes, called
     `injuryCrash`.
 
-    Note that `NumberOfLanes` may contains NaN values in the returned DataFrame.
+    Train/test splitting uses `crashYear` feature to keep past data for training
+    and future data for testing, therefore data are randomized only within each
+    year.
 
     :param input_data: input CAS dataset
     :param output_file: output .csv file
@@ -88,8 +90,9 @@ def prepare(
     # homogenize unknown values representation
     input_data.replace("Null", "Unknown", inplace=True)
 
-    # sort by year and flag the last entries as test data
+    # sort by year, randomize per year and flag the last entries as test data
     input_data.sort_values(by="crashYear", ascending=True, inplace=True)
+    input_data = input_data.groupby("crashYear").sample(frac=1, random_state=42)
 
     test_idx = int(len(input_data) * test_size)
     input_data["fold"] = "train"
