@@ -22,40 +22,19 @@ rule prepare_data:
     shell:
         "cas_data prepare {input} -o {output}"
 
-rule fit_model:
+rule fit:
     input:
         "results/cas_dataset.csv"
     output:
-        "results/{model_name}_model/model.pickle"
-    threads: 10
-    shell:
-        "models fit-{wildcards.model_name} {input} -o {output} -j {threads}"
-
-rule fit_mlp:
-    input:
-        "results/cas_dataset.csv"
-    output:
-        "results/mlp_model/model.pickle"
+        "results/{model_type}_model/model.pickle"
     threads: 1 if SLURM else 10
     params:
-        slurm_config="-s config/mlp.yaml" if SLURM else "",
-        n_iter=50 if SLURM else 10
+        n_iter=50 if SLURM else 10,
+        slurm_config="-s config/mlp.yaml" if SLURM else ""
     shell:
         """
-        models fit-mlp {input} -o {output} -j {threads} {params.slurm_config} -n {params.n_iter}
-        """
-
-rule fit_rf:
-    input:
-        "results/cas_dataset.csv"
-    output:
-        "results/rf_model/model.pickle"
-    threads: 1 if SLURM else 10
-    params:
-        slurm_config="-s config/rf.yaml" if SLURM else "",
-    shell:
-        """
-        models fit-rf {input} -o {output} -j {threads} {params.slurm_config}
+        models fit-mlp {input} {output} -j {threads} -m {wildcards.model_type} \
+            -n {params.n_iter} {params.slurm_config}
         """
 
 rule predict:

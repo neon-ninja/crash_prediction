@@ -1,5 +1,6 @@
 import typing as T
 import pickle
+from enum import Enum
 from pathlib import Path
 
 import defopt
@@ -12,8 +13,7 @@ from sklearn.base import BaseEstimator
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import make_column_transformer, make_column_selector
 from sklearn.pipeline import make_pipeline
-from sklearn.model_selection import GridSearchCV
-from sklearn.linear_model import LogisticRegressionCV
+from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -21,12 +21,84 @@ from sklearn.ensemble import RandomForestClassifier
 import joblib
 import dask
 from dask.distributed import Client
+from dask.diagnostics import ProgressBar
 from dask_jobqueue import SLURMCluster
 import dask_ml.model_selection as dcv
 
 
+def columns_transform():
+    # TODO include year?
+    return make_column_transformer(
+        ("drop", ["crashYear"]),
+        (StandardScaler(), make_column_selector(dtype_include=np.number)),
+        (
+            OneHotEncoder(handle_unknown="ignore"),
+            make_column_selector(dtype_include=object),
+        ),
+    )
+
+
+def fit_linear(X, y, n_iter):
+    """Fit a logistic regression model"""
+    model = LogisticRegression(max_iter=500, penalty="elasticnet", solver="saga")
+    model = make_pipeline(columns_transform(), model)
+
+    param_space = {
+        "logisticregression__l1_ratio": st.uniform(0, 1),
+        "logisticregression__C": st.loguniform(1e-4, 1e4),
+    }
+    model = dcv.RandomizedSearchCV(
+        model, param_space, scoring="neg_log_loss", n_iter=n_iter, random_state=42
+    )
+
+    model.fit(X, y)
+    return model
+
+
+def fit_mlp(X, y, n_iter):
+    """Fit a multi-layer perceptron model"""
+    model = MLPClassifier(random_state=42, early_stopping=True)
+    model = make_pipeline(columns_transform(), model)
+
+    param_space = {
+        "mlpclassifier__alpha": st.loguniform(1e-5, 1e-2),
+        "mlpclassifier__learning_rate_init": st.loguniform(1e-4, 1e-1),
+    }
+    model = dcv.RandomizedSearchCV(
+        model, param_space, scoring="neg_log_loss", n_iter=n_iter, random_state=42
+    )
+
+    model.fit(X, y)
+    return model
+
+
+def fit_knn(X, y, n_iter):
+    """Fit a KNN model"""
+    columns_tf = make_column_transformer(("passthrough", ["X", "Y"]))
+    model = make_pipeline(columns_tf, KNeighborsClassifier())
+
+    param_grid = {
+        "kneighborsclassifier__n_neighbors": [1, 5, 10, 20, 50, 100, 200, 500]
+    }
+    model = dcv.GridSearchCV(model, param_grid, scoring="neg_log_loss")
+
+    model.fit(X, y)
+    return model
+
+
+def fit_rf(X, y, n_iter):
+    """Fit a random forest model"""
+    model = RandomForestClassifier(random_state=42)
+    model = make_pipeline(columns_transform(), model)
+
+    with joblib.parallel_backend("dask", scatter=[X, y]):
+        model.fit(X, y)
+
+    return model
+
+
 def slurm_cluster(n_workers, cores_per_worker, mem_per_worker, walltime, dask_folder):
-    """start a Dask Slurm-based cluster
+    """helper function to start a Dask Slurm-based cluster
 
     :param n_workers: number of workers to use
     :param cores_per_worker: number of cores per worker
@@ -52,95 +124,40 @@ def slurm_cluster(n_workers, cores_per_worker, mem_per_worker, walltime, dask_fo
     return cluster
 
 
-def columns_transform():
-    # TODO include year?
-    return make_column_transformer(
-        ("drop", ["crashYear"]),
-        (StandardScaler(), make_column_selector(dtype_include=np.number)),
-        (
-            OneHotEncoder(handle_unknown="ignore"),
-            make_column_selector(dtype_include=object),
-        ),
-    )
+ModelType = Enum('ModelType', 'linear mlp knn rf')
 
 
-def fit_linear(
-    dset: T.Union[pd.DataFrame, Path],
+def fit(
+    dset: Path,
+    output_file: Path,
     *,
-    output_file: T.Optional[Path] = None,
+    model_type: ModelType = ModelType.linear,
     fold: str = "train",
-    verbose: bool = False,
-    jobs: int = 1,
-) -> BaseEstimator:
-    """Fit a logistic regression model
-
-    :param dset: CAS dataset
-    :param output_file: output .pickle file
-    :param fold: fold used for training
-    :param verbose: verbose mode
-    :param jobs: number of jobs to use, -1 means all processors
-    :returns: fitted model
-    """
-    if isinstance(dset, Path):
-        dset = pd.read_csv(dset)
-
-    X = dset[dset.fold == fold].drop(columns="fold")
-    y = X.pop("injuryCrash")
-
-    model = LogisticRegressionCV(
-        max_iter=500, scoring="neg_log_loss", n_jobs=jobs, verbose=verbose
-    )
-    model = make_pipeline(columns_transform(), model)
-
-    model.fit(X, y)
-
-    if output_file is not None:
-        with output_file.open("wb") as fd:
-            pickle.dump(model, fd)
-
-    return model
-
-
-def fit_mlp(
-    dset: T.Union[pd.DataFrame, Path],
-    *,
-    output_file: T.Optional[Path] = None,
-    fold: str = "train",
-    verbose: bool = False,
     n_iter: int = 10,
     jobs: int = 1,
     dask_folder: Path = Path.cwd() / "dask",
     slurm_config: T.Optional[Path] = None,
 ) -> BaseEstimator:
-    """Fit a multi-layer perceptron model
+    """Fit a model
 
     :param dset: CAS dataset
     :param output_file: output .pickle file
+    :param model_type: type of model to use
     :param fold: fold used for training
-    :param verbose: verbose mode
-    :param n_iter: number of random configurations to test
-    :param jobs: number of jobs to use, ignored if a Dask cluster is used
+    :param n_iter: budget for hyper-parameters optimization
+    :param jobs: number of CPU cores to use, ignored if a Dask cluster is used
     :param dask_folder: folder to keep workers temporary data
     :param slurm_config: Dask Slurm-based cluster .yaml configuration file
     :returns: fitted model
     """
-    if isinstance(dset, Path):
-        dset = pd.read_csv(dset)
-
+    dset = pd.read_csv(dset)
     X = dset[dset.fold == fold].drop(columns="fold")
     y = X.pop("injuryCrash")
 
-    model = MLPClassifier(random_state=42, early_stopping=True)
-    model = make_pipeline(columns_transform(), model)
+    # find function to fit the model in the global namespace
+    model_func = globals()["fit_" + model_type.name]
 
-    param_space = {
-        "mlpclassifier__alpha": st.loguniform(1e-5, 1e-2),
-        "mlpclassifier__learning_rate_init": st.loguniform(1e-4, 1e-1),
-    }
-    model = dcv.RandomizedSearchCV(
-        model, param_space, scoring="neg_log_loss", n_iter=n_iter, random_state=42
-    )
-
+    # start a Dask cluster, local by default, use a configuration file for Slurm
     if slurm_config is None:
         client = Client(n_workers=jobs, local_directory=dask_folder)
     else:
@@ -149,105 +166,10 @@ def fit_mlp(
         client = Client(cluster)
 
     client.wait_for_workers(1)
-    model.fit(X, y)
+    model = model_func(X, y, n_iter=n_iter)
 
-    if output_file is not None:
-        with output_file.open("wb") as fd:
-            pickle.dump(model, fd)
-
-    return model
-
-
-def fit_knn(
-    dset: T.Union[pd.DataFrame, Path],
-    *,
-    output_file: T.Optional[Path] = None,
-    fold: str = "train",
-    verbose: bool = False,
-    jobs: int = 1,
-) -> BaseEstimator:
-    """Fit a KNN model
-
-    The number of neighbors is selected via cross-validation.
-
-    :param dset: CAS dataset
-    :param output_file: output .pickle file
-    :param fold: fold used for training
-    :param verbose: verbose mode
-    :param jobs: number of jobs to use, -1 means all processors
-    :returns: fitted model
-    """
-    if isinstance(dset, Path):
-        dset = pd.read_csv(dset)
-
-    X = dset[dset.fold == fold].drop(columns="fold")
-    y = X.pop("injuryCrash")
-
-    columns_tf = make_column_transformer(("passthrough", ["X", "Y"]))
-    model = make_pipeline(columns_tf, KNeighborsClassifier())
-
-    param_grid = {
-        "kneighborsclassifier__n_neighbors": [1, 5, 10, 20, 50, 100, 200, 500]
-    }
-    model = GridSearchCV(
-        model, param_grid, scoring="neg_log_loss", verbose=verbose, n_jobs=jobs
-    )
-
-    model.fit(X, y)
-
-    if output_file is not None:
-        with output_file.open("wb") as fd:
-            pickle.dump(model, fd)
-
-    return model
-
-
-def fit_rf(
-    dset: T.Union[pd.DataFrame, Path],
-    *,
-    output_file: T.Optional[Path] = None,
-    fold: str = "train",
-    verbose: bool = False,
-    jobs: int = 1,
-    dask_folder: Path = Path.cwd() / "dask",
-    slurm_config: T.Optional[Path] = None,
-) -> BaseEstimator:
-    """Fit a random forest model
-
-    :param dset: CAS dataset
-    :param output_file: output .pickle file
-    :param fold: fold used for training
-    :param verbose: verbose mode
-    :param jobs: number of jobs to use, ignored if a Dask cluster is used
-    :param dask_folder: folder to keep workers temporary data
-    :param slurm_config: Dask Slurm-based cluster .yaml configuration file
-    :returns: fitted model
-    """
-    if isinstance(dset, Path):
-        dset = pd.read_csv(dset)
-
-    X = dset[dset.fold == fold].drop(columns="fold")
-    y = X.pop("injuryCrash")
-
-    model = RandomForestClassifier(random_state=42, verbose=verbose)
-    model = make_pipeline(columns_transform(), model)
-
-    if slurm_config is None:
-        client = Client(n_workers=jobs, local_directory=dask_folder)
-    else:
-        slurm_kwargs = yaml.safe_load(slurm_config.read_text())
-        cluster = slurm_cluster(**slurm_kwargs, dask_folder=dask_folder)
-        client = Client(cluster)
-
-    client.wait_for_workers(1)
-    with joblib.parallel_backend("dask", scatter=[X, y]):
-        model.fit(X, y)
-
-    if output_file is not None:
-        with output_file.open("wb") as fd:
-            pickle.dump(model, fd)
-
-    return model
+    with output_file.open("wb") as fd:
+        pickle.dump(model, fd)
 
 
 def predict(
@@ -283,6 +205,6 @@ def predict(
 def main():
     """wrapper function to create a CLI tool"""
     defopt.run(
-        [fit_linear, fit_mlp, fit_knn, fit_rf, predict],
+        [fit, predict],
         parsers={T.Union[pd.DataFrame, Path]: Path, T.Union[BaseEstimator, Path]: Path},
     )
