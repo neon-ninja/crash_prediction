@@ -1,47 +1,51 @@
 # Crash Prediction
 
-TODO Introduction
+This project aims at predicting car crash severity in New Zealand, using
+publicly available data from NZTA.
 
 
 ## Installation
 
-On jupyter.nesi.org.nz, open a terminal and clone this repository:
+First make sure you have [Git](https://git-scm.com/downloads),
+[Miniconda](https://docs.conda.io/en/latest/miniconda.html) and `make` installed
+on your computer.
+
+Then open a terminal and clone this repository:
 ```
 git clone https://github.com/neon-ninja/crash_prediction.git
 ```
-then change directory:
-```
-cd crash_prediction
-```
-and use the Makefile to install dependencies and create a conda environment:
-```
-make venv_nesi
-```
-
-If you are using this code on a regular computer (not HPC), make sure you have:
-- [Git](https://git-scm.com/downloads),
-- [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed,
-- [JupyterLab](https://jupyter.org/install.html) or another program to run
-  notebooks,
-- the `make` command.
-
-Then clone this repository, for example from a terminal using:
-```
-git clone https://github.com/neon-ninja/crash_prediction.git
-```
-change directory and install all dependencies using `make`:
+Use `make` to create a conda environment and install all dependencies:
 ```
 cd crash_prediction
 make venv
 ```
+The conda environment is created in the local `venv` folder.
 
-Whichever way you installed the code, now you can run the provided notebooks
-using the `crash_prediction` kernel.
+**Note:** If you are on [NeSI](https://www.nesi.org.nz/) HPCs, use
+`make venv_nesi` instead.
+
+Now you can run the provided notebooks using the `crash_prediction` kernel, or
+use the scripts detailed in the next section.
 
 
 ## Getting Started
 
-First, you need to retrieve the CAS dataset, using the `cas_data` script:
+You can either use the following scripts or run the full pipeline using
+[Snakemake](https://snakemake.readthedocs.io) (more details below):
+
+- the `cas_data` script is used to download and preprocess CAS data,
+- the `models` script is used to fit a model and make predictions,
+- the `evaluate` script generate summary tables and plots.
+
+Before using any script or Snakemake, make sure that you activate the conda
+environment:
+```
+cd crash_prediction
+conda activate ./venv
+```
+
+If you want to use the scripts, first you need to retrieve the CAS dataset,
+using the `cas_data` script:
 ```
 mkdir data
 cas_data download data/cas_dataset.csv
@@ -53,12 +57,61 @@ mkdir results
 cas_data prepare data/cas_dataset.csv -o results/cas_dataset.csv
 ```
 
-TODO explain other scripts and notebooks
+Use the `models` script to fit a model, here a k-nearest neighbors model:
+```
+models fit results/cas_dataset.csv results/knn_model/model.pickle --model-type knn
+```
+and make predictions using the fitted model:
+```
+models predict results/cas_dataset.csv results/knn_model/model.pickle results/knn_model/predictions.csv
+```
+
+Finally, if you have trained one or more models, you can create some performance
+plots with the `evaluate` scripts:
+```
+evaluate results/summary results/cas_dataset.csv results/knn_model/predictions.csv --labels knn
+```
+
+For each script, you can use the `-h` or `--help` flag to get detailed
+explanations about the options. For example:
+```
+model fit -h
+```
+
+**Note:** When fitting a model, hyperparameters are automatically set using various 
+strategies depending on the model (random search, grid search, ...) that can
+benefit from parallelisation. Change the `--n-workers` parameter to run
+`models fit` on multiple processes. If you are running the code on the HPC, you
+can also use `--use-slurm` flag to distribute computations on multiple nodes.
 
 
-## Documentation
+## Snakemake
 
-TODO link to pages below and generated API documentation if any
+You can run all previous steps (data preparation, model fitting, predictions
+and evaluation) in a coordinated way using Snakemake:
+```
+snakemake -j <cores>
+```
+where `<cores>` stands for the number of CPU cores to use for the workflow.
+
+There are a couple of interesting options to be aware of to make your life easier:
+
+- use `-n` to see what will be (re-)computed without actually running anything,
+- use `-p` to print the command line associated with each step
+- use `-k` to continue running the workflow even if one target failed.
+
+If you are using the HPC and want to make use of the Slurm backend for parallel
+model fitting, use `--config USE_SLURM=True`:
+```
+snakemake -j 1 --config USE_SLURM=True
+```
+
+
+## Project structure
+
+TODO explain notebooks
+
+TODO folder structure
 
 
 ## License
