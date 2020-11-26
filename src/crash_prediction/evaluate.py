@@ -117,6 +117,7 @@ def summarize(
     :param preds_file: predictions .csv file for one method
     :param labels: method name for each input dataset file
     """
+    sb.set()
 
     # use input filenames as labels if none are given
     if not labels:
@@ -141,14 +142,22 @@ def summarize(
 
     # save the combined dataframe and the figure
     output_folder.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_folder / "curves.png")
+
     scores.to_csv(output_folder / "scores.csv", index=False)
+
+    fig.tight_layout()
+    fig.savefig(output_folder / "curves.png")
 
     # plot scores in a grid and save the figure
     scores = scores.sort_values(["label"])
     grid = sb.FacetGrid(data=scores, col="metric", sharey=False, col_wrap=3)
     grid.map_dataframe(
-        sb.barplot, x="label", y="value", hue="fold", hue_order=["train", "test"]
+        sb.pointplot,
+        x="label",
+        y="value",
+        hue="fold",
+        hue_order=["train", "test"],
+        join=False,
     )
     grid.set_xticklabels(rotation=45, ha="right")
     grid.add_legend()
