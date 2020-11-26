@@ -66,42 +66,9 @@ def plot_precision_recall(dset, ax=None):
     return ax
 
 
-METRICS_FCN = {
-    "accuracy": metrics.accuracy_score,
-    "F1": metrics.f1_score,
-    "precision": metrics.precision_score,
-    "recall": metrics.recall_score,
-}
-
-
-def score(dset_file: Path, preds_file: Path, output_folder: Path):
-    """Score and plots results
-
-    :param dset_file: CAS dataset .csv file
-    :param pred_file: predictions .csv file
-    :param output_folder: output folder for the figures
-    """
-    dset = pd.read_csv(dset_file, usecols=["injuryCrash", "fold"])
-    dset["y_prob"] = pd.read_csv(preds_file)
-    dset["y_pred"] = dset["y_prob"] > 0.5
-
-    output_folder.mkdir(parents=True, exist_ok=True)
-
-    # generate scores for each defined metric
-    def score_fold(x):
-        scores = {
-            key: metric_fcn(x["injuryCrash"], x["y_pred"])
-            for key, metric_fcn in METRICS_FCN.items()
-        }
-        scores["neg_log_loss"] = metrics.log_loss(x["injuryCrash"], x["y_prob"])
-        scores["roc_auc"] = metrics.roc_auc_score(x["injuryCrash"], x["y_prob"])
-        return pd.Series(scores)
-
-    scores = dset.groupby("fold").apply(score_fold).reset_index()
-    scores.to_csv(output_folder / "scores.csv", index=False)
-
-    # plot calibration, ROC and precision/recall curves
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+def plot_curves(dset, axes=None):
+    if axes is None:
+        _, axes = plt.subplot(1, 3)
 
     plot_roc_curves(dset, ax=axes[0])
     axes[0].set_title("ROC curve")
@@ -112,15 +79,42 @@ def score(dset_file: Path, preds_file: Path, output_folder: Path):
     plot_calibration_curves(dset, ax=axes[2])
     axes[2].set_title("Calibration curve")
 
-    fig.tight_layout()
-    fig.savefig(output_folder / "curves.png")
+    return axes
 
 
-def summarize(output_folder: Path, *score_file: Path, labels: T.Iterable[str] = ()):
-    """Generate summary plot and table
+METRICS_FCN = {
+    "accuracy": metrics.accuracy_score,
+    "F1": metrics.f1_score,
+    "precision": metrics.precision_score,
+    "recall": metrics.recall_score,
+}
+
+
+def _score_method(dset):
+    def score_fold(x):
+        scores = {
+            key: metric_fcn(x["injuryCrash"], x["y_pred"])
+            for key, metric_fcn in METRICS_FCN.items()
+        }
+        scores["neg_log_loss"] = metrics.log_loss(x["injuryCrash"], x["y_prob"])
+        scores["roc_auc"] = metrics.roc_auc_score(x["injuryCrash"], x["y_prob"])
+        return pd.Series(scores)
+
+    scores = dset.groupby("fold").apply(score_fold).reset_index()
+    return pd.melt(scores, id_vars="fold", var_name="metric")
+
+
+def summarize(
+    output_folder: Path,
+    dset_file: Path,
+    *preds_file: Path,
+    labels: T.Iterable[str] = ()
+):
+    """Generate summary plots and tables
 
     :param output_folder: directory to save figures (plots and tables)
-    :param score_file: CSV file containing scores for one method
+    :param dset_file: CAS dataset .csv file
+    :param preds_file: predictions .csv file for one method
     :param labels: method name for each input dataset file
     """
 
@@ -128,14 +122,27 @@ def summarize(output_folder: Path, *score_file: Path, labels: T.Iterable[str] = 
     if not labels:
         labels = [str(fname) for fname in score_file]
 
-    # merge together all scores dataframes
-    scores = [pd.read_csv(fname) for fname in score_file]
-    scores = [pd.melt(score, id_vars="fold", var_name="metric") for score in scores]
-    scores = pd.concat([df.assign(label=label) for df, label in zip(scores, labels)])
+    dset = pd.read_csv(dset_file, usecols=["injuryCrash", "fold"])
 
-    # save the combined dataframe
+    # load predictions for each method, score results and plot curves
+    scores = {}
+    fig, axes = plt.subplots(len(preds_file), 3, figsize=(15, 5 * len(preds_file)))
+
+    for fname, label, ax in zip(preds_file, labels, axes):
+        preds = pd.read_csv(fname)
+        dset_preds = dset.assign(y_prob=preds, y_pred=preds > 0.5)
+
+        scores[label] = _score_method(dset_preds)
+
+        plot_curves(dset_preds, ax)
+        ax[0].set_ylabel(label, size="large")
+
+    scores = pd.concat([df.assign(label=label) for label, df in scores.items()])
+
+    # save the combined dataframe and the figure
     output_folder.mkdir(parents=True, exist_ok=True)
-    scores.to_csv(output_folder / "summary.csv", index=False)
+    fig.savefig(output_folder / "curves.png")
+    scores.to_csv(output_folder / "scores.csv", index=False)
 
     # plot scores in a grid and save the figure
     scores = scores.sort_values(["label"])
@@ -145,8 +152,8 @@ def summarize(output_folder: Path, *score_file: Path, labels: T.Iterable[str] = 
     )
     grid.set_xticklabels(rotation=45, ha="right")
     grid.add_legend()
-    grid.fig.savefig(output_folder / "summary.png", bbox_inches="tight")
+    grid.fig.savefig(output_folder / "scores.png", bbox_inches="tight")
 
 
 def main():
-    defopt.run([score, summarize])
+    defopt.run(summarize)

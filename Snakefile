@@ -5,8 +5,7 @@ MODELS = ["linear", "mlp", "knn", "rf"]
 rule all:
     input:
         "results/cas_dataset.csv",
-        expand("results/{model_name}_model/scores.csv", model_name=MODELS),
-        multiext("results/summary", ".csv", ".png")
+        "results/summary",
 
 rule download_data:
     output:
@@ -64,19 +63,10 @@ rule predict:
 rule evaluate:
     input:
         "results/cas_dataset.csv",
-        "results/{model_name}_model/predictions.csv"
+        expand("results/{model_name}_model/predictions.csv", model_name=MODELS)
     output:
-        "results/{model_name}_model/scores.csv",
-        "results/{model_name}_model/curves.png"
-    shell:
-        "evaluate score {input} results/{wildcards.model_name}_model"
-
-rule summarize:
-    input:
-        expand("results/{model_name}_model/scores.csv", model_name=MODELS)
-    output:
-        multiext("results/summary", ".csv", ".png")
+        directory("results/summary")
     params:
         labels=" ".join(MODELS)
     shell:
-        "evaluate summarize results {input} -l {params.labels}"
+        "evaluate {output} {input} -l {params.labels}"
