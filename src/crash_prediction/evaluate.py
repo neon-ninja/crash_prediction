@@ -98,6 +98,7 @@ def _score_method(dset):
         }
         scores["neg_log_loss"] = metrics.log_loss(x["injuryCrash"], x["y_prob"])
         scores["roc_auc"] = metrics.roc_auc_score(x["injuryCrash"], x["y_prob"])
+        scores["brier_score"] = metrics.brier_score_loss(x["injuryCrash"], x["y_prob"])
         return pd.Series(scores)
 
     scores = dset.groupby("fold").apply(score_fold).reset_index()
@@ -127,7 +128,7 @@ def summarize(
 
     # load predictions for each method, score results and plot curves
     scores = {}
-    fig, axes = plt.subplots(len(preds_file), 3, figsize=(15, 5 * len(preds_file)))
+    fig, axes = plt.subplots(len(preds_file), 3, figsize=(10.5, 3.5 * len(preds_file)))
 
     for fname, label, ax in zip(preds_file, labels, axes):
         preds = pd.read_csv(fname)
@@ -150,14 +151,13 @@ def summarize(
 
     # plot scores in a grid and save the figure
     scores = scores.sort_values(["label"])
-    grid = sb.FacetGrid(data=scores, col="metric", sharey=False, col_wrap=3)
+    grid = sb.FacetGrid(data=scores, col="metric", sharey=False, col_wrap=4)
     grid.map_dataframe(
-        sb.pointplot,
+        sb.barplot,
         x="label",
         y="value",
         hue="fold",
         hue_order=["train", "test"],
-        join=False,
     )
     grid.set_xticklabels(rotation=45, ha="right")
     grid.add_legend()
