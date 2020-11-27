@@ -100,9 +100,9 @@ def fit_gbdt(X, y, n_iter):
 
     param_space = {
         "lgbmclassifier__num_leaves": [32, 64, 128, 256],
-        "lgbmclassifier__reg_alpha ": st.loguniform(1e-10, 1.0),
-        "lgbmclassifier__reg_lambda ": st.loguniform(1e-10, 1.0),
-        "lgbmclassifier__learning_rate_init": st.loguniform(1e-4, 1e-1),
+        "lgbmclassifier__reg_alpha": st.loguniform(1e-10, 1.0),
+        "lgbmclassifier__reg_lambda": st.loguniform(1e-10, 1.0),
+        "lgbmclassifier__learning_rate": st.loguniform(1e-4, 1e-1),
     }
     model = dcv.RandomizedSearchCV(
         model, param_space, scoring="neg_log_loss", n_iter=n_iter, random_state=42
