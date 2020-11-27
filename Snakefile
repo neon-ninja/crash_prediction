@@ -1,6 +1,6 @@
 USE_SLURM = config.get("USE_SLURM", False)
 
-MODELS = ["linear", "mlp", "knn", "gbdt"]
+MODELS = ["dummy", "linear", "mlp", "knn", "gbdt"]
 
 rule all:
     input:

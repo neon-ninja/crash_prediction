@@ -13,6 +13,7 @@ from sklearn.base import BaseEstimator
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import make_column_transformer, make_column_selector
 from sklearn.pipeline import make_pipeline
+from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
@@ -37,6 +38,13 @@ def columns_transform():
             make_column_selector(dtype_include=object),
         ),
     )
+
+
+def fit_dummy(X, y, n_iter):
+    """Fit a dummy estimator"""
+    model = DummyClassifier(strategy="prior")
+    model.fit(X, y)
+    return model
 
 
 def fit_linear(X, y, n_iter):
@@ -141,7 +149,7 @@ def slurm_cluster(n_workers, cores_per_worker, mem_per_worker, walltime, dask_fo
     return client
 
 
-ModelType = Enum("ModelType", "linear mlp knn gbdt")
+ModelType = Enum("ModelType", "dummy linear mlp knn gbdt")
 
 
 def fit(
