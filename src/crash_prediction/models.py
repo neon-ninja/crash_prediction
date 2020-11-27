@@ -17,6 +17,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import ExtraTreesClassifier
+from lightgbm import LGBMClassifier
 
 import joblib
 import dask
@@ -92,15 +93,16 @@ def fit_knn(X, y, n_iter):
     return model
 
 
-def fit_rf(X, y, n_iter):
-    """Fit a random forest model"""
-    model = ExtraTreesClassifier(n_estimators=500, random_state=42)
+def fit_gbdt(X, y, n_iter):
+    """Fit a gradient boosted decision trees model"""
+    model = LGBMClassifier(n_estimators=500, random_state=42)
     model = make_pipeline(columns_transform(), model)
 
-    with joblib.parallel_backend("dask", scatter=[X, y]):
-        model.fit(X, y)
+    # with joblib.parallel_backend("dask", scatter=[X, y]):
+    model.fit(X, y)
 
     return model
+
 
 
 def slurm_cluster(n_workers, cores_per_worker, mem_per_worker, walltime, dask_folder):
@@ -132,7 +134,7 @@ def slurm_cluster(n_workers, cores_per_worker, mem_per_worker, walltime, dask_fo
     return client
 
 
-ModelType = Enum("ModelType", "linear mlp knn rf")
+ModelType = Enum("ModelType", "linear mlp knn gbdt")
 
 
 def fit(
