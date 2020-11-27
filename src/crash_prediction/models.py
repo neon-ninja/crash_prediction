@@ -95,14 +95,21 @@ def fit_knn(X, y, n_iter):
 
 def fit_gbdt(X, y, n_iter):
     """Fit a gradient boosted decision trees model"""
-    model = LGBMClassifier(n_estimators=500, random_state=42)
+    model = LGBMClassifier(n_estimators=2000, random_state=42)
     model = make_pipeline(columns_transform(), model)
 
-    # with joblib.parallel_backend("dask", scatter=[X, y]):
+    param_space = {
+        "lgbmclassifier__num_leaves": [32, 64, 128, 256],
+        "lgbmclassifier__reg_alpha ": st.loguniform(1e-10, 1.0),
+        "lgbmclassifier__reg_lambda ": st.loguniform(1e-10, 1.0),
+        "lgbmclassifier__learning_rate_init": st.loguniform(1e-4, 1e-1),
+    }
+    model = dcv.RandomizedSearchCV(
+        model, param_space, scoring="neg_log_loss", n_iter=n_iter, random_state=42
+    )
+
     model.fit(X, y)
-
     return model
-
 
 
 def slurm_cluster(n_workers, cores_per_worker, mem_per_worker, walltime, dask_folder):

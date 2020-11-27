@@ -52,6 +52,21 @@ rule fit_knn:
             --n-workers {params.n_workers} --mem-per-worker "10GB" {params.use_slurm}
         """
 
+rule fit_gbdt:
+    input:
+        "results/cas_dataset.csv"
+    output:
+        "results/gbdt_model/model.pickle"
+    threads: 1 if USE_SLURM else 8
+    params:
+        n_workers=lambda wildcards, threads: 25 if USE_SLURM else max(1, threads // 4),
+        use_slurm="--use-slurm" if USE_SLURM else ""
+    shell:
+        """
+        models fit {input} {output} --model-type gbdt \
+            --n-workers {params.n_workers} --mem-per-worker "4GB" {params.use_slurm}
+        """
+
 rule predict:
     input:
         "results/cas_dataset.csv",
