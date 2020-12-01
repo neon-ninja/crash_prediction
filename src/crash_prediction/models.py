@@ -116,7 +116,7 @@ def fit_radius(X, y, n_iter):
     )
 
     param_space = {
-        "radiusneighborsclassifier__radius": loguniform_int(1, 500),
+        "radiusneighborsclassifier__radius":  st.loguniform(1e-5, 1e-2),
         "radiusneighborsclassifier__weights": ["uniform", "distance"],
     }
     model = dcv.RandomizedSearchCV(
