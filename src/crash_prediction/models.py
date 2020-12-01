@@ -10,14 +10,13 @@ import pandas as pd
 import scipy.stats as st
 
 from sklearn.base import BaseEstimator
-from sklearn.preprocessing import OneHotEncoder, StandardScaler, FunctionTransformer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import make_column_transformer, make_column_selector
 from sklearn.pipeline import make_pipeline
 from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier, RadiusNeighborsClassifier
-from sklearn.ensemble import StackingClassifier
 from lightgbm import LGBMClassifier
 
 import dask
@@ -86,13 +85,21 @@ def fit_mlp(X, y, n_iter):
     return model
 
 
+def loguniform_int(a, b):
+    """Create a discrete random variable following a log-uniform distribution"""
+    xs = np.arange(a, b + 1)
+    probs = 1 / (xs * np.log(b / a))
+    probs /= probs.sum()
+    return st.rv_discrete(a=a, b=b, values=[xs, probs], name='loguniform_int')
+
+
 def fit_knn(X, y, n_iter):
     """Fit a KNN model on geographical coordinates only"""
     columns_tf = make_column_transformer(("passthrough", ["X", "Y"]))
     model = make_pipeline(columns_tf, KNeighborsClassifier())
 
-    param_grid = {
-        "kneighborsclassifier__n_neighbors": [1, 5, 10, 20, 50, 100, 200, 500],
+    param_space = {
+        "kneighborsclassifier__n_neighbors": loguniform_int(1, 500),
         "kneighborsclassifier__weights": ["uniform", "distance"],
     }
     model = dcv.GridSearchCV(model, param_grid, scoring="neg_log_loss")
@@ -109,7 +116,7 @@ def fit_radius(X, y, n_iter):
     )
 
     param_space = {
-        "radiusneighborsclassifier__radius": st.loguniform(1e-5, 1e-2),
+        "radiusneighborsclassifier__radius": loguniform_int(1, 500),
         "radiusneighborsclassifier__weights": ["uniform", "distance"],
     }
     model = dcv.RandomizedSearchCV(
@@ -136,32 +143,6 @@ def fit_gbdt(X, y, n_iter):
     )
 
     model.fit(X, y)
-    return model
-
-
-def _select_xy(X):
-    return X[:, :2]
-
-
-def fit_knn_linear(X, y, n_iter):
-    """Fit a KNN model on geographical coordinates combined with a linear model
-
-    The output of the KNN model is fed into the logistic regression model, in
-    addition of the other predictors.
-    """
-    select_xy = FunctionTransformer(_select_xy)
-    knn_model = make_pipeline(select_xy, KNeighborsClassifier())
-
-    linear_model = LogisticRegression(max_iter=500, penalty="elasticnet", solver="saga")
-
-    model = StackingClassifier([("knn", knn_model)], linear_model)
-    model = make_pipeline(columns_transform(), model)
-
-    import joblib
-
-    with joblib.parallel_backend("dask", scatter=[X, y]):
-        model.fit(X, y)
-
     return model
 
 
@@ -194,7 +175,7 @@ def slurm_cluster(n_workers, cores_per_worker, mem_per_worker, walltime, dask_fo
     return client
 
 
-ModelType = Enum("ModelType", "dummy linear mlp knn gbdt knn_linear radius")
+ModelType = Enum("ModelType", "dummy linear mlp knn radius gbdt")
 
 
 def fit(

@@ -1,6 +1,7 @@
 USE_SLURM = config.get("USE_SLURM", False)
+N_ITER = config.get("N_ITER", 50)
 
-MODELS = ["dummy", "linear", "mlp", "knn", "gbdt", "radius"]
+MODELS = ["dummy", "linear", "mlp", "knn", "radius", "gbdt"]
 
 rule all:
     input:
@@ -34,7 +35,7 @@ rule fit:
     shell:
         """
         models fit {input} {output} --model-type {wildcards.model_type} \
-            --n-workers {params.n_workers} {params.use_slurm}
+             --n-iter {N_ITER} --n-workers {params.n_workers} {params.use_slurm}
         """
 
 rule fit_knn:
@@ -48,7 +49,7 @@ rule fit_knn:
         use_slurm="--use-slurm" if USE_SLURM else ""
     shell:
         """
-        models fit {input} {output} --model-type knn \
+        models fit {input} {output} --model-type knn --n-iter {N_ITER} \
             --n-workers {params.n_workers} --mem-per-worker "10GB" {params.use_slurm}
         """
 
@@ -63,7 +64,7 @@ rule fit_radius:
         use_slurm="--use-slurm" if USE_SLURM else ""
     shell:
         """
-        models fit {input} {output} --model-type radius \
+        models fit {input} {output} --model-type radius --n-iter {N_ITER} \
             --n-workers {params.n_workers} --mem-per-worker "20GB" {params.use_slurm}
         """
 
@@ -78,7 +79,7 @@ rule fit_gbdt:
         use_slurm="--use-slurm" if USE_SLURM else ""
     shell:
         """
-        models fit {input} {output} --model-type gbdt \
+        models fit {input} {output} --model-type gbdt --n-iter {N_ITER} \
             --n-workers {params.n_workers} --mem-per-worker "4GB" {params.use_slurm}
         """
 

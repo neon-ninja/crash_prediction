@@ -85,7 +85,7 @@ benefit from parallelisation. Change the `--n-workers` parameter to run
 can also use `--use-slurm` flag to distribute computations on multiple nodes.
 
 
-## Snakemake
+## Full pipeline with Snakemake
 
 You can run all previous steps (data preparation, model fitting, predictions
 and evaluation) in a coordinated way using Snakemake:
@@ -104,6 +104,12 @@ If you are using the HPC and want to make use of the Slurm backend for parallel
 model fitting, use `--config USE_SLURM=True`:
 ```
 snakemake -j 1 --config USE_SLURM=True
+```
+
+For testing purpose, you can also reduce the number of iterations of
+hyperparameters optimization via the `N_ITER` configuration:
+```
+snakemake -j 1 --config N_ITER=1
 ```
 
 
