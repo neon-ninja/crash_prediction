@@ -102,7 +102,9 @@ def fit_knn(X, y, n_iter):
         "kneighborsclassifier__n_neighbors": loguniform_int(1, 500),
         "kneighborsclassifier__weights": ["uniform", "distance"],
     }
-    model = dcv.GridSearchCV(model, param_grid, scoring="neg_log_loss")
+    model = dcv.RandomizedSearchCV(
+        model, param_space, scoring="neg_log_loss", n_iter=n_iter, random_state=42
+    )
 
     model.fit(X, y)
     return model
