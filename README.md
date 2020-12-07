@@ -112,6 +112,14 @@ hyperparameters optimization via the `N_ITER` configuration:
 snakemake -j 1 --config N_ITER=1
 ```
 
+## Results
+
+Model results summaries:
+![curves](results/summary/curves.png)
+![scores](results/summary/scores.png)
+
+These scores can be downloaded as CSV from https://github.com/neon-ninja/crash_prediction/blob/main/results/summary/scores.csv 
+
 
 ## Project structure
 
