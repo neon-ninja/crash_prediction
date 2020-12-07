@@ -117,8 +117,10 @@ snakemake -j 1 --config N_ITER=1
 
 ### Notebooks
 
-HTML versions of the notebooks can be browsed at 
-https://neon-ninja.github.io/crash_prediction/notebooks/01_explore_cas.html and https://neon-ninja.github.io/crash_prediction/notebooks/02_crash_severity.html  
+HTML versions of the notebooks can be browsed at:  
+https://neon-ninja.github.io/crash_prediction/notebooks/01_explore_cas.html  
+and  
+https://neon-ninja.github.io/crash_prediction/notebooks/02_crash_severity.html  
 
 TODO folder structure
 
