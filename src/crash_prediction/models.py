@@ -90,7 +90,7 @@ def loguniform_int(a, b):
     xs = np.arange(a, b + 1)
     probs = 1 / (xs * np.log(b / a))
     probs /= probs.sum()
-    return st.rv_discrete(a=a, b=b, values=[xs, probs], name='loguniform_int')
+    return st.rv_discrete(a=a, b=b, values=[xs, probs], name="loguniform_int")
 
 
 def fit_knn(X, y, n_iter):
@@ -118,7 +118,7 @@ def fit_radius(X, y, n_iter):
     )
 
     param_space = {
-        "radiusneighborsclassifier__radius":  st.loguniform(1e-5, 1e-2),
+        "radiusneighborsclassifier__radius": st.loguniform(1e-5, 1e-2),
         "radiusneighborsclassifier__weights": ["uniform", "distance"],
     }
     model = dcv.RandomizedSearchCV(
@@ -135,7 +135,8 @@ def fit_gbdt(X, y, n_iter):
     model = make_pipeline(columns_transform(), model)
 
     param_space = {
-        "lgbmclassifier__num_leaves": [32, 64, 128, 256],
+        "lgbmclassifier__min_data_in_leaf": loguniform_int(5, 500),
+        "lgbmclassifier__num_leaves": loguniform_int(32, 2000),
         "lgbmclassifier__reg_alpha": st.loguniform(1e-10, 1.0),
         "lgbmclassifier__reg_lambda": st.loguniform(1e-10, 1.0),
         "lgbmclassifier__learning_rate": st.loguniform(1e-4, 1e-1),
