@@ -69,8 +69,8 @@ def fit_mlp(X, y, n_iter):
 
     layers_options = [
         [n_units] * n_layers
-        for n_units, n_layers in it.product(range(10, 110, 10), range(1, 4))
-        if n_units ** n_layers <= 10000
+        for n_units, n_layers in it.product(range(10, 210, 10), range(1, 4))
+        if n_units ** n_layers <= 50000
     ]
     param_space = {
         "mlpclassifier__hidden_layer_sizes": layers_options,

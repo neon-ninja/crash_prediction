@@ -1,5 +1,5 @@
 USE_SLURM = config.get("USE_SLURM", False)
-N_ITER = config.get("N_ITER", 50)
+N_ITER = config.get("N_ITER", 100)
 
 MODELS = ["dummy", "linear", "mlp", "knn", "gbdt"]
 
@@ -30,12 +30,16 @@ rule fit:
         "results/{model_type}_model/model.pickle"
     threads: 1 if USE_SLURM else 8
     params:
+        cores_per_worker=8 if USE_SLURM else 4,
         n_workers=lambda wildcards, threads: 50 if USE_SLURM else max(1, threads // 4),
         use_slurm="--use-slurm" if USE_SLURM else ""
     shell:
         """
         models fit {input} {output} --model-type {wildcards.model_type} \
-             --n-iter {N_ITER} --n-workers {params.n_workers} {params.use_slurm}
+             --n-iter {N_ITER} \
+             --n-workers {params.n_workers} \
+             --cores-per-worker={params.cores_per_worker} \
+             {params.use_slurm}
         """
 
 rule fit_knn:
@@ -49,8 +53,11 @@ rule fit_knn:
         use_slurm="--use-slurm" if USE_SLURM else ""
     shell:
         """
-        models fit {input} {output} --model-type knn --n-iter {N_ITER} \
-            --n-workers {params.n_workers} --mem-per-worker "10GB" {params.use_slurm}
+        models fit {input} {output} --model-type knn \
+             --n-iter {N_ITER} \
+             --n-workers {params.n_workers} \
+             --mem-per-worker "10GB" \
+             {params.use_slurm}
         """
 
 rule fit_gbdt:
@@ -60,12 +67,17 @@ rule fit_gbdt:
         "results/gbdt_model/model.pickle"
     threads: 1 if USE_SLURM else 8
     params:
+        cores_per_worker=8 if USE_SLURM else 4,
         n_workers=lambda wildcards, threads: 25 if USE_SLURM else max(1, threads // 4),
         use_slurm="--use-slurm" if USE_SLURM else ""
     shell:
         """
-        models fit {input} {output} --model-type gbdt --n-iter {N_ITER} \
-            --n-workers {params.n_workers} --mem-per-worker "4GB" {params.use_slurm}
+        models fit {input} {output} --model-type gbdt \
+             --n-iter {N_ITER} \
+             --n-workers {params.n_workers} \
+             --cores-per-worker={params.cores_per_worker} \
+             --mem-per-worker "4GB" \
+             {params.use_slurm}
         """
 
 rule predict:
