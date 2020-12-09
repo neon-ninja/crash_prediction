@@ -16,7 +16,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
-from sklearn.neighbors import KNeighborsClassifier, RadiusNeighborsClassifier
+from sklearn.neighbors import KNeighborsClassifier
 from lightgbm import LGBMClassifier
 
 import dask
@@ -110,25 +110,6 @@ def fit_knn(X, y, n_iter):
     return model
 
 
-def fit_radius(X, y, n_iter):
-    """Fit a Radius neighbors classifier model on geographical coordinates only"""
-    columns_tf = make_column_transformer(("passthrough", ["X", "Y"]))
-    model = make_pipeline(
-        columns_tf, RadiusNeighborsClassifier(outlier_label="most_frequent")
-    )
-
-    param_space = {
-        "radiusneighborsclassifier__radius": st.loguniform(1e-5, 1e-2),
-        "radiusneighborsclassifier__weights": ["uniform", "distance"],
-    }
-    model = dcv.RandomizedSearchCV(
-        model, param_space, scoring="neg_log_loss", n_iter=n_iter, random_state=42
-    )
-
-    model.fit(X, y)
-    return model
-
-
 def fit_gbdt(X, y, n_iter):
     """Fit a gradient boosted decision trees model"""
     model = LGBMClassifier(n_estimators=2000, random_state=42)
@@ -178,7 +159,7 @@ def slurm_cluster(n_workers, cores_per_worker, mem_per_worker, walltime, dask_fo
     return client
 
 
-ModelType = Enum("ModelType", "dummy linear mlp knn radius gbdt")
+ModelType = Enum("ModelType", "dummy linear mlp knn gbdt")
 
 
 def fit(

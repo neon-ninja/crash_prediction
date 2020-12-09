@@ -1,7 +1,7 @@
 USE_SLURM = config.get("USE_SLURM", False)
 N_ITER = config.get("N_ITER", 50)
 
-MODELS = ["dummy", "linear", "mlp", "knn", "radius", "gbdt"]
+MODELS = ["dummy", "linear", "mlp", "knn", "gbdt"]
 
 rule all:
     input:
@@ -51,21 +51,6 @@ rule fit_knn:
         """
         models fit {input} {output} --model-type knn --n-iter {N_ITER} \
             --n-workers {params.n_workers} --mem-per-worker "10GB" {params.use_slurm}
-        """
-
-rule fit_radius:
-    input:
-        "results/cas_dataset.csv"
-    output:
-        "results/radius_model/model.pickle"
-    threads: 1 if USE_SLURM else 8
-    params:
-        n_workers=lambda wildcards, threads: 5 if USE_SLURM else max(1, threads // 4),
-        use_slurm="--use-slurm" if USE_SLURM else ""
-    shell:
-        """
-        models fit {input} {output} --model-type radius --n-iter {N_ITER} \
-            --n-workers {params.n_workers} --mem-per-worker "20GB" {params.use_slurm}
         """
 
 rule fit_gbdt:
