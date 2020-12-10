@@ -66,10 +66,15 @@ and make predictions using the fitted model:
 models predict results/cas_dataset.csv results/knn_model/model.pickle results/knn_model/predictions.csv
 ```
 
-Finally, if you have trained one or more models, you can create some performance
-plots with the `evaluate` scripts:
+Once you have trained one or more models, you can create some performance plots
+with the `evaluate` script:
 ```
 evaluate results/summary results/cas_dataset.csv results/knn_model/predictions.csv --labels knn
+```
+
+Predictions can be visualized on a map using the `visualize` script:
+```
+visualize results/cas_dataset.csv results/*_model/predictions.csv
 ```
 
 For each script, you can use the `-h` or `--help` flag to get detailed
