@@ -39,6 +39,7 @@ rule fit:
              --n-iter {N_ITER} \
              --n-workers {params.n_workers} \
              --cores-per-worker={params.cores_per_worker} \
+             --mem-per-worker "6GB" \
              {params.use_slurm}
         """
 
@@ -76,7 +77,7 @@ rule fit_gbdt:
              --n-iter {N_ITER} \
              --n-workers {params.n_workers} \
              --cores-per-worker={params.cores_per_worker} \
-             --mem-per-worker "4GB" \
+             --mem-per-worker "6GB" \
              {params.use_slurm}
         """
 

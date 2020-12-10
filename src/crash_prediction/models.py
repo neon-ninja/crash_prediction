@@ -55,7 +55,7 @@ def fit_linear(X, y, n_iter):
         "logisticregression__C": st.loguniform(1e-4, 1e4),
     }
     model = dcv.RandomizedSearchCV(
-        model, param_space, scoring="neg_log_loss", n_iter=n_iter, random_state=42
+        model, param_space, scoring="neg_log_loss", n_iter=n_iter, random_state=42, cv=5
     )
 
     model.fit(X, y)
@@ -78,7 +78,7 @@ def fit_mlp(X, y, n_iter):
         "mlpclassifier__learning_rate_init": st.loguniform(1e-4, 1e-1),
     }
     model = dcv.RandomizedSearchCV(
-        model, param_space, scoring="neg_log_loss", n_iter=n_iter, random_state=42
+        model, param_space, scoring="neg_log_loss", n_iter=n_iter, random_state=42, cv=5
     )
 
     model.fit(X, y)
@@ -103,7 +103,7 @@ def fit_knn(X, y, n_iter):
         "kneighborsclassifier__weights": ["uniform", "distance"],
     }
     model = dcv.RandomizedSearchCV(
-        model, param_space, scoring="neg_log_loss", n_iter=n_iter, random_state=42
+        model, param_space, scoring="neg_log_loss", n_iter=n_iter, random_state=42, cv=5
     )
 
     model.fit(X, y)
@@ -117,13 +117,13 @@ def fit_gbdt(X, y, n_iter):
 
     param_space = {
         "lgbmclassifier__min_data_in_leaf": loguniform_int(5, 500),
-        "lgbmclassifier__num_leaves": loguniform_int(32, 2000),
+        "lgbmclassifier__num_leaves": loguniform_int(31, 500),
         "lgbmclassifier__reg_alpha": st.loguniform(1e-10, 1.0),
         "lgbmclassifier__reg_lambda": st.loguniform(1e-10, 1.0),
         "lgbmclassifier__learning_rate": st.loguniform(1e-4, 1e-1),
     }
     model = dcv.RandomizedSearchCV(
-        model, param_space, scoring="neg_log_loss", n_iter=n_iter, random_state=42
+        model, param_space, scoring="neg_log_loss", n_iter=n_iter, random_state=42, cv=5
     )
 
     model.fit(X, y)
