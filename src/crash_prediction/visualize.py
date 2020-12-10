@@ -51,7 +51,7 @@ def display_results(dset_file: Path, *preds_file: Path, show: bool = True):
 
             crash_map = plot_map(dset, "injuryCrash", "Ground truth", clim=(0, 1))
             preds_map = plot_map(dset, "predictions", "Predictions", clim=(0, 1))
-            error_map = plot_map(dset, "error", "Errors", cmap="coolwarm", clim=(-1, 1))
+            error_map = plot_map(dset, "error", "Errors", cmap="seismic", clim=(-1, 1))
 
             hv_maps = pn.panel(crash_map + preds_map + error_map)
             return pn.Column(hv_maps[1][0][0], hv_maps[0])
