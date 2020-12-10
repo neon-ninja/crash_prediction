@@ -77,7 +77,7 @@ rule fit_mlp:
              --n-workers {params.n_workers} \
              --cores-per-worker 4 \
              --mem-per-worker "4GB" \
-             --walltime 0-01:00 \
+             --walltime 0-03:00 \
              {params.use_slurm}
         """
 
