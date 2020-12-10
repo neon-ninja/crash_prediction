@@ -7,21 +7,21 @@ import hvplot.pandas  # noqa
 import panel as pn
 
 
-def plot_map(dset, varname, title):
+def plot_map(dset, varname, title, cmap="fire", **kwargs):
     return dset.hvplot.points(
         "X",
         "Y",
         c=varname,
         title=title,
-        datashade=True,
-        dynspread=True,
+        rasterize=True,
         aggregator="mean",
-        cmap="fire",
+        cmap=cmap,
         geo=True,
         tiles="CartoLight",
         frame_width=450,
         frame_height=450,
         groupby="fold",
+        **kwargs
     )
 
 
@@ -46,9 +46,10 @@ def display_results(dset_file: Path, *preds_file: Path, show: bool = True):
             dset["predictions"] = pd.read_csv(preds_file[0])
             dset["error"] = dset["injuryCrash"] - dset["predictions"]
 
-            crash_map = plot_map(dset, "injuryCrash", "Ground truth")
-            preds_map = plot_map(dset, "predictions", "Predictions")
-            error_map = plot_map(dset, "error", "Errors")
+            crash_map = plot_map(dset, "injuryCrash", "Ground truth", clim=(0, 1))
+            preds_map = plot_map(dset, "predictions", "Predictions", clim=(0, 1))
+            error_map = plot_map(dset, "error", "Errors", cmap="coolwarm", clim=(-1, 1))
+
             hv_maps = pn.panel(crash_map + preds_map + error_map)
 
             widgets = pn.WidgetBox(filename_widget, hv_maps[1][0][0])
