@@ -19,8 +19,8 @@ def plot_map(dset, varname, title):
         cmap="fire",
         geo=True,
         tiles="CartoLight",
-        frame_width=600,
-        frame_height=600,
+        frame_width=450,
+        frame_height=450,
         groupby="fold",
     )
 
@@ -36,12 +36,27 @@ def display_results(dset_file: Path, *preds_file: Path, show: bool = True):
     dset = pd.read_csv(dset_file, usecols=["X", "Y", "injuryCrash", "fold"])
     dset["injuryCrash"] = dset["injuryCrash"].astype(float)
 
-    dset["predictions"] = pd.read_csv(preds_file[0])
+    if preds_file:
+        filename = pn.widgets.Select(name="Filename", options=list(preds_file))
 
-    crash_map = plot_map(dset, "injuryCrash", "Ground truth")
-    preds_map = plot_map(dset, "predictions", "Predictions")
+        @pn.depends(filename=filename.param.value)
+        def plot_crash_n_results(filename):
+            dset["predictions"] = pd.read_csv(preds_file[0])
+            dset["error"] = dset["injuryCrash"] - dset["predictions"]
 
-    pane = pn.panel(crash_map + preds_map)
+            crash_map = plot_map(dset, "injuryCrash", "Ground truth")
+            preds_map = plot_map(dset, "predictions", "Predictions")
+            error_map = plot_map(dset, "error", "Errors")
+            maps = crash_map + preds_map + error_map
+
+            print(maps)
+            return maps
+
+        pane = pn.panel(pn.Column(filename, plot_crash_n_results))
+
+    else:
+        pane = pn.panel(plot_map(dset, "injuryCrash", "Ground truth"))
+
     pn.serve(pane, show=show)
 
 
