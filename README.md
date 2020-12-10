@@ -114,23 +114,31 @@ snakemake -j 1 --config N_ITER=1
 
 ## Results
 
-Model results summaries:
+Performance plots for the latest run are available in the [results/summary](results/summary)
+folder:
+
 ![curves](results/summary/curves.png)
 ![scores](results/summary/scores.png)
 
-These scores can be downloaded as CSV from https://github.com/neon-ninja/crash_prediction/blob/main/results/summary/scores.csv 
+These scores can also be downloaded as [a .csv file](results/summary/scores.csv).
+
+The classifiers being probabilistic, one should particularly pay attention to
+the calibration curves to ensure that the prediction has a good coverage.
 
 
-## Project structure
+## Notebooks
 
-### Notebooks
+Notebooks have been used for exploratory work:
 
-HTML versions of the notebooks can be browsed at:  
-https://neon-ninja.github.io/crash_prediction/notebooks/01_explore_cas.html  
-and  
-https://neon-ninja.github.io/crash_prediction/notebooks/02_crash_severity.html  
+- [01_explore_cas.ipynb](notebooks/01_explore_cas.ipynb)
+  [[html version](https://neon-ninja.github.io/crash_prediction/notebooks/01_explore_cas.html)]
+  is an exploratory data analysis of the CAS dataset ,
+- [02_crash_severity.ipynb](notebooks/02_crash_severity.ipynb)
+  [[html version](https://neon-ninja.github.io/crash_prediction/notebooks/02_crash_severity.html)]
+  focuses on the severity of the crashes.
 
-TODO folder structure
+*Note: the notebooks have been written as Python scripts and converted into
+notebooks using [`Jupytext`](https://github.com/mwouts/jupytext).*
 
 
 ## License
