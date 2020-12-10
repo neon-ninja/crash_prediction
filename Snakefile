@@ -38,7 +38,7 @@ rule fit:
         models fit {input} {output} --model-type {wildcards.model_type} \
              --n-iter {N_ITER} \
              --n-workers {params.n_workers} \
-             --cores-per-worker={params.cores_per_worker} \
+             --cores-per-worker {params.cores_per_worker} \
              --mem-per-worker "6GB" \
              {params.use_slurm}
         """
@@ -61,6 +61,26 @@ rule fit_knn:
              {params.use_slurm}
         """
 
+rule fit_mlp:
+    input:
+        "results/cas_dataset.csv"
+    output:
+        "results/mlp_model/model.pickle"
+    threads: 1 if USE_SLURM else 8
+    params:
+        n_workers=lambda wildcards, threads: 50 if USE_SLURM else max(1, threads // 4),
+        use_slurm="--use-slurm" if USE_SLURM else ""
+    shell:
+        """
+        models fit {input} {output} --model-type mlp \
+             --n-iter {N_ITER} \
+             --n-workers {params.n_workers} \
+             --cores-per-worker 4 \
+             --mem-per-worker "4GB" \
+             --walltime 0-01:00 \
+             {params.use_slurm}
+        """
+
 rule fit_gbdt:
     input:
         "results/cas_dataset.csv"
@@ -76,8 +96,8 @@ rule fit_gbdt:
         models fit {input} {output} --model-type gbdt \
              --n-iter {N_ITER} \
              --n-workers {params.n_workers} \
-             --cores-per-worker={params.cores_per_worker} \
-             --mem-per-worker "6GB" \
+             --cores-per-worker {params.cores_per_worker} \
+             --mem-per-worker "8GB" \
              {params.use_slurm}
         """
 
