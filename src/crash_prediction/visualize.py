@@ -38,12 +38,15 @@ def display_results(dset_file: Path, *preds_file: Path, show: bool = True):
 
     if preds_file:
         filename_widget = pn.widgets.Select(
-            name="Predictions file", options=list(preds_file), margin=(20, 20, 0, 20)
+            name="Predictions file",
+            options=list(preds_file),
+            margin=(20, 20, 0, 20),
+            width=400,
         )
 
         @pn.depends(filename=filename_widget.param.value)
         def plot_crash_n_results(filename):
-            dset["predictions"] = pd.read_csv(preds_file[0])
+            dset["predictions"] = pd.read_csv(filename)
             dset["error"] = dset["injuryCrash"] - dset["predictions"]
 
             crash_map = plot_map(dset, "injuryCrash", "Ground truth", clim=(0, 1))
@@ -51,13 +54,9 @@ def display_results(dset_file: Path, *preds_file: Path, show: bool = True):
             error_map = plot_map(dset, "error", "Errors", cmap="coolwarm", clim=(-1, 1))
 
             hv_maps = pn.panel(crash_map + preds_map + error_map)
+            return pn.Column(hv_maps[1][0][0], hv_maps[0])
 
-            widgets = pn.WidgetBox(filename_widget, hv_maps[1][0][0])
-            return pn.Row(
-                pn.Column(pn.layout.VSpacer(), widgets, pn.layout.VSpacer()), hv_maps[0]
-            )
-
-        pane = pn.panel(plot_crash_n_results)
+        pane = pn.Column(filename_widget, plot_crash_n_results)
 
     else:
         pane = pn.panel(plot_map(dset, "injuryCrash", "Ground truth"))
